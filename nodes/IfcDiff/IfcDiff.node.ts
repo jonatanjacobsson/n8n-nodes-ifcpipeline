@@ -1,6 +1,7 @@
 import { IExecuteFunctions } from 'n8n-workflow';
+import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { formatFileName, ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
 
 export class IfcDiff implements INodeType {
 	description: INodeTypeDescription = {
@@ -10,12 +11,12 @@ export class IfcDiff implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Compare different versions of IFC files',
+		description: 'Compare different versions of IFC files, for documentation see Ifcopenshell.',
 		defaults: {
 			name: 'IFC Diff',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [{type: NodeConnectionType.Main}],
+		outputs: [{type: NodeConnectionType.Main}],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

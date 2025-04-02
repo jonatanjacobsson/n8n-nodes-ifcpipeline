@@ -1,6 +1,7 @@
 import { IExecuteFunctions } from 'n8n-workflow';
+import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { formatFileName, ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
 
 export class IfcQuantityTakeoff implements INodeType {
 	description: INodeTypeDescription = {
@@ -14,8 +15,8 @@ export class IfcQuantityTakeoff implements INodeType {
 		defaults: {
 			name: 'IFC Quantity Takeoff',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [{type: NodeConnectionType.Main}],
+		outputs: [{type: NodeConnectionType.Main}],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

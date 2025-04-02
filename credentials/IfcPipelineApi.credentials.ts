@@ -14,8 +14,8 @@ export class IfcPipelineApi implements ICredentialType {
 			displayName: 'Base URL',
 			name: 'baseUrl',
 			type: 'string',
-			default: 'http://localhost:8000',
-			placeholder: 'http://localhost:8000',
+			default: 'http://api-gateway',
+			placeholder: 'http://api-gateway',
 			description: 'The base URL of your IFC Pipeline API instance',
 		},
 		{

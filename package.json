@@ -12,7 +12,7 @@
   "homepage": "https://github.com/jonatanjacobsson/ifcpipeline",
   "author": {
     "name": "IFC Pipeline Contributors",
-    "email": ""
+    "email": "jonatan.jacobsson@byggstyrning.se"
   },
   "repository": {
     "type": "git",
@@ -20,9 +20,9 @@
   },
   "engines": {
     "node": ">=18.10",
-    "pnpm": ">=9.1"
+    "pnpm": ">=7.0"
   },
-  "packageManager": "pnpm@9.1.4",
+  "packageManager": "pnpm@7.33.6",
   "main": "index.js",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
@@ -42,7 +42,7 @@
       "dist/credentials/IfcPipelineApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/FileOperations/FileOperations.node.js",
+      "dist/nodes/IfcPipeline/IfcPipeline.node.js",
       "dist/nodes/IfcConversion/IfcConversion.node.js",
       "dist/nodes/IfcCsv/IfcCsv.node.js",
       "dist/nodes/IfcToJson/IfcToJson.node.js",
@@ -53,6 +53,8 @@
     ]
   },
   "devDependencies": {
+    "@types/node": "^22.13.16",
+    "@types/request": "^2.48.12",
     "@typescript-eslint/parser": "^7.15.0",
     "eslint": "^8.56.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
@@ -63,4 +65,4 @@
   "peerDependencies": {
     "n8n-workflow": "*"
   }
-} 
+}

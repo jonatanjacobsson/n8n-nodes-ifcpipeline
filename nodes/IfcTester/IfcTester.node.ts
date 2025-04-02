@@ -1,6 +1,7 @@
 import { IExecuteFunctions } from 'n8n-workflow';
+import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { formatFileName, ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
 
 export class IfcTester implements INodeType {
 	description: INodeTypeDescription = {
@@ -10,12 +11,12 @@ export class IfcTester implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Validate IFC files against IDS specifications',
+		description: 'Validate IFC files against IDS specifications, for documentation see Ifcopenshell.',
 		defaults: {
 			name: 'IFC Tester',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [{type: NodeConnectionType.Main}],
+		outputs: [{type: NodeConnectionType.Main}],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

@@ -1,6 +1,7 @@
 import { IExecuteFunctions } from 'n8n-workflow';
+import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { formatFileName, ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
 
 export class IfcToJson implements INodeType {
 	description: INodeTypeDescription = {
@@ -10,12 +11,12 @@ export class IfcToJson implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Convert IFC files to JSON format',
+		description: 'Convert IFC files to JSON format, for documentation see https://github.com/bimaps/ifc2json.',
 		defaults: {
 			name: 'IFC to JSON',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [{type: NodeConnectionType.Main}],
+		outputs: [{type: NodeConnectionType.Main}],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

@@ -1,6 +1,7 @@
 import { IExecuteFunctions } from 'n8n-workflow';
+import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { formatFileName, ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
 
 export class IfcClash implements INodeType {
 	description: INodeTypeDescription = {
@@ -10,12 +11,12 @@ export class IfcClash implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Detect spatial clashes between IFC models',
+		description: 'Detect spatial clashes between IFC models, for documentation see Ifcopenshell.',
 		defaults: {
 			name: 'IFC Clash Detection',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [{type: NodeConnectionType.Main}],
+		outputs: [{type: NodeConnectionType.Main}],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',
@@ -205,6 +206,18 @@ export class IfcClash implements INodeType {
 						description: 'Whether to use smart grouping for clash detection',
 					},
 					{
+						displayName: 'Max Cluster Distance',
+						name: 'maxClusterDistance',
+						type: 'number',
+						default: 5.0,
+						description: 'Maximum distance for clustering in smart grouping',
+						displayOptions: {
+							show: {
+								smartGrouping: [true],
+							},
+						},
+					},
+					{
 						displayName: 'Mode',
 						name: 'mode',
 						type: 'options',
@@ -281,6 +294,7 @@ export class IfcClash implements INodeType {
 					const options = this.getNodeParameter('options', i) as {
 						tolerance?: number;
 						smartGrouping?: boolean;
+						maxClusterDistance?: number;
 						mode?: string;
 						clearance?: number;
 						checkAll?: boolean;
@@ -321,6 +335,7 @@ export class IfcClash implements INodeType {
 					// Add optional parameters
 					if (options.tolerance !== undefined) body.tolerance = options.tolerance;
 					if (options.smartGrouping !== undefined) body.smart_grouping = options.smartGrouping;
+					if (options.maxClusterDistance !== undefined) body.max_cluster_distance = options.maxClusterDistance;
 					if (options.mode !== undefined) body.mode = options.mode;
 					if (options.clearance !== undefined) body.clearance = options.clearance;
 					if (options.checkAll !== undefined) body.check_all = options.checkAll;

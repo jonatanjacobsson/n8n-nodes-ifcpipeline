@@ -1,12 +1,12 @@
 import { IExecuteFunctions } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { formatFileName, handleBinaryData, ifcPipelineApiRequest, ifcPipelineApiRequestDownload, ifcPipelineApiRequestUpload } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
+import { handleBinaryData, ifcPipelineApiRequest, ifcPipelineApiRequestDownload, ifcPipelineApiRequestUpload } from '../shared/GenericFunctions';
 
-export class FileOperations implements INodeType {
+export class IfcPipeline implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IFC Pipeline File Operations',
-		name: 'fileOperations',
-		icon: 'file:fileoperations.svg',
+		name: 'ifcPipeline',
+		icon: 'file:ifcpipeline.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
@@ -14,8 +14,16 @@ export class FileOperations implements INodeType {
 		defaults: {
 			name: 'File Operations',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [
+			{
+				type: NodeConnectionType.Main,
+			},
+		],
+		outputs: [
+			{
+				type: NodeConnectionType.Main,
+			},
+		],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',
@@ -197,8 +205,8 @@ export class FileOperations implements INodeType {
 
 					const item = items[i];
 
-					if (item.binary[binaryPropertyName] === undefined) {
-						throw new Error(`No binary data property "${binaryPropertyName}" does not exists on item!`);
+					if (!item.binary || !item.binary[binaryPropertyName]) {
+						throw new Error(`No binary data exists on item in property "${binaryPropertyName}"!`);
 					}
 
 					const binaryData = item.binary[binaryPropertyName];

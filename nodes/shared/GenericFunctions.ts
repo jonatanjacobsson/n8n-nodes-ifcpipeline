@@ -4,16 +4,16 @@ import {
 	IDataObject,
 	INodeExecutionData,
 	NodeApiError,
-	NodeOperationError,
+	IRequestOptions,
+	IHttpRequestMethods,
 } from 'n8n-workflow';
-import { OptionsWithUri } from 'request';
 
 /**
  * Make an API request to IFC Pipeline
  */
 export async function ifcPipelineApiRequest(
 	this: IHookFunctions | IExecuteFunctions,
-	method: string,
+	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -23,7 +23,7 @@ export async function ifcPipelineApiRequest(
 	const credentials = await this.getCredentials('ifcPipelineApi');
 	const baseUrl = credentials.baseUrl as string;
 	
-	const options: OptionsWithUri = {
+	const options: IRequestOptions = {
 		method,
 		body,
 		qs,
@@ -51,7 +51,7 @@ export async function ifcPipelineApiRequest(
  */
 export async function ifcPipelineApiRequestDownload(
 	this: IHookFunctions | IExecuteFunctions,
-	method: string,
+	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},
 	qs: IDataObject = {},
@@ -61,7 +61,7 @@ export async function ifcPipelineApiRequestDownload(
 	const credentials = await this.getCredentials('ifcPipelineApi');
 	const baseUrl = credentials.baseUrl as string;
 	
-	const options: OptionsWithUri = {
+	const options: IRequestOptions = {
 		method,
 		body,
 		qs,
@@ -93,7 +93,7 @@ export async function ifcPipelineApiRequestDownload(
  */
 export async function ifcPipelineApiRequestUpload(
 	this: IHookFunctions | IExecuteFunctions,
-	method: string,
+	method: IHttpRequestMethods,
 	endpoint: string,
 	formData: IDataObject = {},
 	qs: IDataObject = {},
@@ -103,7 +103,7 @@ export async function ifcPipelineApiRequestUpload(
 	const credentials = await this.getCredentials('ifcPipelineApi');
 	const baseUrl = credentials.baseUrl as string;
 	
-	const options: OptionsWithUri = {
+	const options: IRequestOptions = {
 		method,
 		formData,
 		qs,
