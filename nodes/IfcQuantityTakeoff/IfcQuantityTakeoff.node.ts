@@ -15,8 +15,8 @@ export class IfcQuantityTakeoff implements INodeType {
 		defaults: {
 			name: 'IFC Quantity Takeoff',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

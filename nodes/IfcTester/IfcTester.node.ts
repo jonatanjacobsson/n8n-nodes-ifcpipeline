@@ -15,8 +15,8 @@ export class IfcTester implements INodeType {
 		defaults: {
 			name: 'IFC Tester',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

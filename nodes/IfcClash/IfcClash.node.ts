@@ -15,8 +15,8 @@ export class IfcClash implements INodeType {
 		defaults: {
 			name: 'IFC Clash Detection',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

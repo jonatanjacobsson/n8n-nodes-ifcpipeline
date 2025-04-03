@@ -15,8 +15,8 @@ export class IfcConversion implements INodeType {
 		defaults: {
 			name: 'IFC Conversion',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',
