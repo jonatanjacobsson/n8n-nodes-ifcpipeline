@@ -15,8 +15,8 @@ export class IfcToJson implements INodeType {
 		defaults: {
 			name: 'IFC to JSON',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'] as NodeConnectionType[],
+		outputs: ['main'] as NodeConnectionType[],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

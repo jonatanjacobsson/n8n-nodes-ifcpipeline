@@ -15,8 +15,8 @@ export class IfcCsv implements INodeType {
 		defaults: {
 			name: 'IFC CSV',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'] as NodeConnectionType[],
+		outputs: ['main'] as NodeConnectionType[],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

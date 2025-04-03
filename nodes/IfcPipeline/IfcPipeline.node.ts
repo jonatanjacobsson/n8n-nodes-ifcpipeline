@@ -15,8 +15,8 @@ export class IfcPipeline implements INodeType {
 		defaults: {
 			name: 'File Operations',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'] as NodeConnectionType[],
+		outputs: ['main'] as NodeConnectionType[],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',

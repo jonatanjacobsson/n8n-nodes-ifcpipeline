@@ -15,8 +15,8 @@ export class IfcDiff implements INodeType {
 		defaults: {
 			name: 'IFC Diff',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'] as NodeConnectionType[] as NodeConnectionType[],
+		outputs: ['main'] as NodeConnectionType[] as NodeConnectionType[],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',
