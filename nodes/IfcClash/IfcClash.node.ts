@@ -15,8 +15,8 @@ export class IfcClash implements INodeType {
 		defaults: {
 			name: 'IFC Clash Detection',
 		},
-		inputs: [{type: NodeConnectionType.Main}],
-		outputs: [{type: NodeConnectionType.Main}],
+		inputs: ['main'],
+		outputs: ['main'],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',
@@ -192,18 +192,25 @@ export class IfcClash implements INodeType {
 				},
 				options: [
 					{
-						displayName: 'Tolerance',
-						name: 'tolerance',
-						type: 'number',
-						default: 0.01,
-						description: 'The tolerance for clash detection',
-					},
-					{
-						displayName: 'Smart Grouping',
-						name: 'smartGrouping',
+						displayName: 'Allow Touching',
+						name: 'allowTouching',
 						type: 'boolean',
 						default: false,
-						description: 'Whether to use smart grouping for clash detection',
+						description: 'Whether to allow touching elements',
+					},
+					{
+						displayName: 'Check All',
+						name: 'checkAll',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to check all elements',
+					},
+					{
+						displayName: 'Clearance',
+						name: 'clearance',
+						type: 'number',
+						default: 0.0,
+						description: 'The clearance value for clearance mode',
 					},
 					{
 						displayName: 'Max Cluster Distance',
@@ -239,25 +246,18 @@ export class IfcClash implements INodeType {
 						description: 'The clash detection mode',
 					},
 					{
-						displayName: 'Clearance',
-						name: 'clearance',
+						displayName: 'Smart Grouping',
+						name: 'smartGrouping',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to use smart grouping for clash detection',
+					},
+					{
+						displayName: 'Tolerance',
+						name: 'tolerance',
 						type: 'number',
-						default: 0.0,
-						description: 'The clearance value for clearance mode',
-					},
-					{
-						displayName: 'Check All',
-						name: 'checkAll',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to check all elements',
-					},
-					{
-						displayName: 'Allow Touching',
-						name: 'allowTouching',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow touching elements',
+						default: 0.01,
+						description: 'The tolerance for clash detection',
 					},
 				],
 			},

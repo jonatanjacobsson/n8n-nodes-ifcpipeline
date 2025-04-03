@@ -2,45 +2,102 @@
 
 # n8n-nodes-ifcpipeline
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](n8n.io). It includes the node linter and other dependencies.
+This is an n8n community node that lets you use [IfcPipeline](https://github.com/jonatanjacobsson/ifcpipeline) in your n8n workflows.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+IfcPipeline provides tools for working with Industry Foundation Classes (IFC) files in Building Information Modeling (BIM) workflows, enabling automation of IFC data processing and analysis.
 
-## Prerequisites
+[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-You need the following installed on your development machine:
+[Installation](#installation)  
+[Operations](#operations)  
+[Credentials](#credentials)  
+[Compatibility](#compatibility)  
+[Usage](#usage)  
+[Resources](#resources)  
 
-* [git](https://git-scm.com/downloads)
-* Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  pnpm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+## Installation
 
-## Using this starter
+### Requirements
+- Self-hosted n8n instance (community nodes are not available on n8n Cloud)
+- n8n version 0.214.0 or newer
+- [IfcPipeline](https://github.com/jonatanjacobsson/ifcpipeline)
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+### Bundled installation
+This node comes pre-installed with [IfcPipeline](https://github.com/jonatanjacobsson/ifcpipeline).
+For custom setups, see GUI Installation or Manual isntallation below.
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
+### GUI Installation (Recommended)
+
+1. Open your n8n instance
+2. Go to **Settings** > **Community Nodes**
+3. Click **Install**
+4. Enter `n8n-nodes-ifcpipeline` in the "Enter npm package name" field
+5. Click **Install**
+6. Reload your n8n instance when prompted
+
+### Manual Installation
+
+If you can't use the GUI installation method:
+
+1. Navigate to your n8n user data directory:
    ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
+   cd ~/.n8n
    ```
-3. Run `pnpm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `pnpm lint` to check for errors or `pnpm lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
 
-## More information
+2. If it doesn't exist, create a custom directory:
+   ```
+   mkdir -p custom/nodes
+   ```
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+3. Install the package:
+   ```
+   cd custom/nodes
+   npm install n8n-nodes-ifcpipeline
+   ```
+
+4. Start or restart n8n
+
+## Operations
+
+This package includes the following nodes:
+
+- **IfcPipeline**: Core operations including file upload/download and URL downloading
+- **IfcConversion**: Convert between IFC and other formats
+- **IfcClash**: Detect clashes between IFC models
+- **IfcCsv**: Import/export data between IFC and CSV formats
+- **IfcToJson**: Convert IFC data to JSON format
+- **IfcTester**: Test and validate IFC models
+- **IfcDiff**: Compare differences between IFC models
+- **IfcQuantityTakeoff**: Extract quantity information from IFC models
+
+## Credentials
+
+This node requires access to an IFcPipeline API. You'll need to provide:
+
+- **API Key**: Your authorization key for the IFcPipeline API
+- **API URL**: The base URL for your IFcPipeline API instance
+
+## Usage
+
+After installation, the IFcPipeline nodes will be available in the nodes panel under "IFcPipeline". You can search for "IFC" to find all related nodes.
+
+### Typical workflow steps:
+
+1. Upload an IFC file using the **IfcPipeline** node or download using native n8n nodes.
+2. Process the file using specialized nodes (Conversion, Clash Detection, etc.)
+3. Serve or download the processed results or extract data for further use in your workflows.
+
+Each node includes specific options relevant to its function. For example, the IfcClash node allows you to set tolerance levels and detection modes.
+
+## Resources
+
+* [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
+* [IFC specification from BuildingSMART](https://technical.buildingsmart.org/standards/ifc)
+* [IfcOpenShell](https://ifcopenshell.org/)
+
+## Acknowledgement
+This project would not have been possible without the incredible work done by the IfcOpenShell project. Their dedication to creating an open-source IFC parser and toolkit has enabled the development of this node package. We would like to extend our gratitude to the entire IfcOpenShell team for their contributions to the IFC ecosystem.
 
 ## License
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+[MIT](LICENSE.md)

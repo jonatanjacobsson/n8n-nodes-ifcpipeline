@@ -15,8 +15,8 @@ export class IfcCsv implements INodeType {
 		defaults: {
 			name: 'IFC CSV',
 		},
-		inputs: [{type: NodeConnectionType.Main}],
-		outputs: [{type: NodeConnectionType.Main}],
+		inputs: ['main'],
+		outputs: ['main'],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',
@@ -37,7 +37,7 @@ export class IfcCsv implements INodeType {
 						action: 'Export IFC data to CSV format',
 					},
 					{
-						name: 'Import from CSV',
+						name: 'Import From CSV',
 						value: 'importFromCsv',
 						description: 'Import CSV data into IFC file',
 						action: 'Import CSV data into IFC file',
@@ -86,6 +86,20 @@ export class IfcCsv implements INodeType {
 				},
 				options: [
 					{
+						displayName: 'Attributes',
+						name: 'attributes',
+						type: 'string',
+						default: 'Name,Description',
+						description: 'Comma-separated list of attributes to include in the CSV file',
+					},
+					{
+						displayName: 'Delimiter',
+						name: 'delimiter',
+						type: 'string',
+						default: ',',
+						description: 'The delimiter to use for the CSV file',
+					},
+					{
 						displayName: 'Format',
 						name: 'format',
 						type: 'options',
@@ -103,13 +117,6 @@ export class IfcCsv implements INodeType {
 						description: 'The output format',
 					},
 					{
-						displayName: 'Delimiter',
-						name: 'delimiter',
-						type: 'string',
-						default: ',',
-						description: 'The delimiter to use for the CSV file',
-					},
-					{
 						displayName: 'Null Value',
 						name: 'null',
 						type: 'string',
@@ -122,13 +129,6 @@ export class IfcCsv implements INodeType {
 						type: 'string',
 						default: 'IfcProduct',
 						description: 'The query to filter the IFC data',
-					},
-					{
-						displayName: 'Attributes',
-						name: 'attributes',
-						type: 'string',
-						default: 'Name,Description',
-						description: 'Comma-separated list of attributes to include in the CSV file',
 					},
 				],
 			},
@@ -170,7 +170,7 @@ export class IfcCsv implements INodeType {
 						operation: ['importFromCsv'],
 					},
 				},
-				description: 'The name of the output IFC file. If left empty, the original file will be overwritten',
+				description: 'The name of the output IFC file. If left empty, the original file will be overwritten.',
 			},
 		],
 	};

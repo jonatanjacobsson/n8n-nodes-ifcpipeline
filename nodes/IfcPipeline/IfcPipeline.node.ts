@@ -1,10 +1,11 @@
 import { IExecuteFunctions } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 import { handleBinaryData, ifcPipelineApiRequest, ifcPipelineApiRequestDownload, ifcPipelineApiRequestUpload } from '../shared/GenericFunctions';
+import { NodeOperationError } from 'n8n-workflow';
 
 export class IfcPipeline implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'IFC Pipeline File Operations',
+		displayName: 'IfcPipeline File Operations',
 		name: 'ifcPipeline',
 		icon: 'file:ifcpipeline.svg',
 		group: ['transform'],
@@ -14,16 +15,8 @@ export class IfcPipeline implements INodeType {
 		defaults: {
 			name: 'File Operations',
 		},
-		inputs: [
-			{
-				type: NodeConnectionType.Main,
-			},
-		],
-		outputs: [
-			{
-				type: NodeConnectionType.Main,
-			},
-		],
+		inputs: ['main'],
+		outputs: ['main'],
 		credentials: [
 			{
 				name: 'ifcPipelineApi',
@@ -47,19 +40,19 @@ export class IfcPipeline implements INodeType {
 						name: 'Upload File',
 						value: 'uploadFile',
 						description: 'Upload a file to IFC Pipeline',
-						action: 'Upload a file to IFC Pipeline',
+						action: 'Upload a file to ifc pipeline',
 					},
 					{
 						name: 'Download File',
 						value: 'downloadFile',
 						description: 'Download a file from IFC Pipeline',
-						action: 'Download a file from IFC Pipeline',
+						action: 'Download a file from ifc pipeline',
 					},
 					{
 						name: 'Download From URL',
 						value: 'downloadFromUrl',
 						description: 'Download a file from a URL to IFC Pipeline',
-						action: 'Download a file from a URL to IFC Pipeline',
+						action: 'Download a file from a url to ifc pipeline',
 					},
 				],
 				default: 'listDirectories',
@@ -200,13 +193,19 @@ export class IfcPipeline implements INodeType {
 					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
 
 					if (items[i].binary === undefined) {
-						throw new Error('No binary data exists on item!');
+						throw new NodeOperationError(this.getNode(), 'No binary data exists on item!', {
+							itemIndex: i,
+						});
 					}
 
 					const item = items[i];
 
 					if (!item.binary || !item.binary[binaryPropertyName]) {
-						throw new Error(`No binary data exists on item in property "${binaryPropertyName}"!`);
+						throw new NodeOperationError(
+							this.getNode(),
+							`No binary data exists on item in property "${binaryPropertyName}"!`,
+							{ itemIndex: i },
+						);
 					}
 
 					const binaryData = item.binary[binaryPropertyName];

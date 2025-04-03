@@ -6,7 +6,8 @@
     "n8n-community-node-package",
     "ifc",
     "bim",
-    "ifcpipeline"
+    "ifcpipeline",
+    "ifcopenshell"
   ],
   "license": "MIT",
   "homepage": "https://github.com/jonatanjacobsson/ifcpipeline",
