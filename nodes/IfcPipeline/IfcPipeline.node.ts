@@ -161,6 +161,18 @@ export class IfcPipeline implements INodeType {
 				},
 				description: 'URL of the file to download',
 			},
+			{
+				displayName: 'Filename',
+				name: 'outputFilename',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						operation: ['downloadFromUrl'],
+					},
+				},
+				description: 'Optional: Custom filename for the downloaded file. If not provided, the original filename from the URL will be used.',
+			},
 		],
 	};
 
@@ -290,14 +302,20 @@ export class IfcPipeline implements INodeType {
 				} else if (operation === 'downloadFromUrl') {
 					// Download from URL
 					const url = this.getNodeParameter('url', i) as string;
+					const outputFilename = this.getNodeParameter('outputFilename', i, '') as string;
+
+					const requestBody: { url: string; output_filename?: string } = { url };
+
+					// Only add output_filename to the request if it's not empty
+					if (outputFilename) {
+						requestBody.output_filename = outputFilename;
+					}
 
 					responseData = await ifcPipelineApiRequest.call(
 						this,
 						'POST',
 						'/download-from-url',
-						{
-							url,
-						},
+						requestBody,
 					);
 
 					const executionData = this.helpers.constructExecutionMetaData(
@@ -322,4 +340,4 @@ export class IfcPipeline implements INodeType {
 
 		return [returnData];
 	}
-} 
+}

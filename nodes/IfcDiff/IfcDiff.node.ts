@@ -79,6 +79,81 @@ export class IfcDiff implements INodeType {
 				},
 				description: 'The name of the output file',
 			},
+			{
+				displayName: 'Relationships',
+				name: 'relationshipsUi',
+				type: 'multiOptions',
+				displayOptions: {
+					show: {
+						operation: ['compareIfcFiles'],
+					},
+				},
+				options: [
+
+					{
+						name: 'Aggregate',
+						value: 'aggregate',
+						description: 'Check for differences in element aggregation',
+					},
+					{
+						name: 'Attributes',
+						value: 'attributes',
+						description: 'Check for differences in element attributes',
+					},
+					{
+						name: 'Classification',
+						value: 'classification',
+						description: 'Check for differences in element classifications',
+					},
+					{
+						name: 'Container',
+						value: 'container',
+						description: 'Check for differences in spatial containment',
+					},
+					{
+						name: 'Geometry',
+						value: 'geometry',
+						description: 'Check for differences in geometry (default)',
+					},
+					{
+						name: 'Property Sets',
+						value: 'property',
+						description: 'Check for differences in property sets',
+					},
+					{
+						name: 'Type',
+						value: 'type',
+						description: 'Check for differences in element types',
+					},
+				],
+				default: ['geometry'], // Default to only checking geometry
+				description: 'Select which relationships to compare. If none selected, defaults to geometry.',
+			},
+			{
+				displayName: 'Is Shallow',
+				name: 'isShallow',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						operation: ['compareIfcFiles'],
+					},
+				},
+				description: 'Whether to stop comparison after the first difference is found for an element',
+			},
+			{
+				displayName: 'Filter Elements',
+				name: 'filterElements',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						operation: ['compareIfcFiles'],
+					},
+				},
+				placeholder: 'e.g., IfcWall',
+				description: 'Optional IFC query to filter elements for comparison (e.g., IfcWall)',
+			},
 		],
 	};
 
@@ -96,12 +171,25 @@ export class IfcDiff implements INodeType {
 					const oldFile = this.getNodeParameter('oldFile', i) as string;
 					const newFile = this.getNodeParameter('newFile', i) as string;
 					const outputFile = this.getNodeParameter('outputFile', i) as string;
+					const relationships = (this.getNodeParameter('relationshipsUi', i, []) as { relationships: string[] }).relationships ?? [];
+					const isShallow = this.getNodeParameter('isShallow', i, true) as boolean;
+					const filterElements = this.getNodeParameter('filterElements', i, '') as string;
 
-					const body = {
+					const body: any = {
 						old_file: oldFile,
 						new_file: newFile,
 						output_file: outputFile,
+						is_shallow: isShallow,
 					};
+
+					// Only include relationships if it's not empty and not just ['geometry'] (which is the default handled by the backend if null)
+					if (relationships.length > 0 && !(relationships.length === 1 && relationships[0] === 'geometry')) {
+						body.relationships = relationships;
+					}
+					// Only include filter_elements if it's not an empty string
+					if (filterElements) {
+						body.filter_elements = filterElements;
+					}
 
 					responseData = await ifcPipelineApiRequest.call(
 						this,
@@ -132,4 +220,4 @@ export class IfcDiff implements INodeType {
 
 		return [returnData];
 	}
-} 
+}
