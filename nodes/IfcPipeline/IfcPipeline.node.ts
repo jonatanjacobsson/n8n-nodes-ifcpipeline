@@ -31,18 +31,6 @@ export class IfcPipeline implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'List Directories',
-						value: 'listDirectories',
-						description: 'List available directories and files',
-						action: 'List available directories and files',
-					},
-					{
-						name: 'Upload File',
-						value: 'uploadFile',
-						description: 'Upload a file to IFC Pipeline',
-						action: 'Upload a file to ifc pipeline',
-					},
-					{
 						name: 'Download File',
 						value: 'downloadFile',
 						description: 'Download a file from IFC Pipeline',
@@ -53,6 +41,24 @@ export class IfcPipeline implements INodeType {
 						value: 'downloadFromUrl',
 						description: 'Download a file from a URL to IFC Pipeline',
 						action: 'Download a file from a url to ifc pipeline',
+					},
+					{
+						name: 'Get Job Status',
+						value: 'getJobStatus',
+						description: 'Get the status of a job in IFC Pipeline',
+						action: 'Get the status of a job in ifc pipeline',
+					},
+					{
+						name: 'List Directories',
+						value: 'listDirectories',
+						description: 'List available directories and files',
+						action: 'List available directories and files',
+					},
+					{
+						name: 'Upload File',
+						value: 'uploadFile',
+						description: 'Upload a file to IFC Pipeline',
+						action: 'Upload a file to ifc pipeline',
 					},
 				],
 				default: 'listDirectories',
@@ -172,6 +178,21 @@ export class IfcPipeline implements INodeType {
 					},
 				},
 				description: 'Optional: Custom filename for the downloaded file. If not provided, the original filename from the URL will be used.',
+			},
+
+			// Get Job Status
+			{
+				displayName: 'Job ID',
+				name: 'jobId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						operation: ['getJobStatus'],
+					},
+				},
+				description: 'ID of the job to get status for',
 			},
 		],
 	};
@@ -316,6 +337,22 @@ export class IfcPipeline implements INodeType {
 						'POST',
 						'/download-from-url',
 						requestBody,
+					);
+
+					const executionData = this.helpers.constructExecutionMetaData(
+						this.helpers.returnJsonArray(responseData as any),
+						{ itemData: { item: i } },
+					);
+
+					returnData.push(...executionData);
+				} else if (operation === 'getJobStatus') {
+					// Get job status
+					const jobId = this.getNodeParameter('jobId', i) as string;
+
+					responseData = await ifcPipelineApiRequest.call(
+						this,
+						'GET',
+						`/jobs/${jobId}/status`,
 					);
 
 					const executionData = this.helpers.constructExecutionMetaData(
