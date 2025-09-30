@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-ifcpipeline",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "n8n nodes for IFC Pipeline integration",
   "keywords": [
     "n8n-community-node-package",
