@@ -1,13 +1,13 @@
-import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
+import { IExecuteFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
 
 export class IfcPatch implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IFC Patch',
 		name: 'ifcPatch',
-		icon: 'file:ifcpatch.svg',
+		icon: 'file:ifcopenshell.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
@@ -59,7 +59,7 @@ export class IfcPatch implements INodeType {
 					},
 				},
 				description: 'The name of the input IFC file',
-				placeholder: 'model.ifc',
+				placeholder: '/uploads/model.ifc',
 			},
 			{
 				displayName: 'Output File',
@@ -73,7 +73,7 @@ export class IfcPatch implements INodeType {
 					},
 				},
 				description: 'The name of the output IFC file',
-				placeholder: 'model_patched.ifc',
+				placeholder: '/output/model_patched.ifc',
 			},
 			{
 				displayName: 'Recipe Name',
@@ -250,41 +250,8 @@ export class IfcPatch implements INodeType {
 					const jobId = responseData.job_id;
 
 					// If waitForCompletion is true, poll for job status
-					if (waitForCompletion) {
-						const startTime = Date.now();
-						let jobCompleted = false;
-						let jobStatus: any;
-
-					while (!jobCompleted) {
-						// Check if timeout exceeded
-						if ((Date.now() - startTime) / 1000 > timeout) {
-							throw new NodeOperationError(
-								this.getNode(),
-								`Job timeout exceeded after ${timeout} seconds`,
-							);
-						}
-
-							// Wait for polling interval
-							await new Promise((resolve) => setTimeout(resolve, pollingInterval * 1000));
-
-							// Check job status
-							jobStatus = await ifcPipelineApiRequest.call(
-								this,
-								'GET',
-								`/jobs/${jobId}/status`,
-							);
-
-						if (jobStatus.status === 'finished') {
-							jobCompleted = true;
-							responseData = jobStatus;
-						} else if (jobStatus.status === 'failed') {
-							throw new NodeOperationError(
-								this.getNode(),
-								`Job failed: ${jobStatus.error || 'Unknown error'}`,
-							);
-						}
-							// If status is 'queued' or 'started', continue polling
-						}
+					if (waitForCompletion && jobId) {
+						responseData = await pollForJobCompletion(this, jobId, pollingInterval, timeout);
 					}
 
 					const executionData = this.helpers.constructExecutionMetaData(

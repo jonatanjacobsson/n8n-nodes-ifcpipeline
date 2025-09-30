@@ -4,6 +4,7 @@ import {
 	IDataObject,
 	INodeExecutionData,
 	NodeApiError,
+	NodeOperationError,
 	IRequestOptions,
 	IHttpRequestMethods,
 } from 'n8n-workflow';
@@ -22,7 +23,7 @@ export async function ifcPipelineApiRequest(
 ) {
 	const credentials = await this.getCredentials('ifcPipelineApi');
 	const baseUrl = credentials.baseUrl as string;
-	
+
 	const options: IRequestOptions = {
 		method,
 		body,
@@ -60,7 +61,7 @@ export async function ifcPipelineApiRequestDownload(
 ) {
 	const credentials = await this.getCredentials('ifcPipelineApi');
 	const baseUrl = credentials.baseUrl as string;
-	
+
 	const options: IRequestOptions = {
 		method,
 		body,
@@ -102,7 +103,7 @@ export async function ifcPipelineApiRequestUpload(
 ) {
 	const credentials = await this.getCredentials('ifcPipelineApi');
 	const baseUrl = credentials.baseUrl as string;
-	
+
 	const options: IRequestOptions = {
 		method,
 		formData,
@@ -147,7 +148,7 @@ export function handleBinaryData(
 	data: Buffer,
 ): INodeExecutionData[] {
 	const newItems: INodeExecutionData[] = [];
-	
+
 	for (const item of items) {
 		const newItem = {
 			json: {
@@ -158,15 +159,62 @@ export function handleBinaryData(
 				...(item.binary || {}),
 			},
 		};
-		
+
 		newItem.binary![propertyName] = {
 			data: data.toString('base64'),
 			mimeType,
 			fileName,
 		};
-		
+
 		newItems.push(newItem);
 	}
-	
+
 	return newItems;
-} 
+}
+
+/**
+ * Poll for job completion
+ */
+export async function pollForJobCompletion(
+	context: IExecuteFunctions,
+	jobId: string,
+	pollingInterval: number = 2,
+	timeout: number = 300,
+): Promise<any> {
+	const startTime = Date.now();
+	let jobCompleted = false;
+	let jobStatus: any;
+
+	while (!jobCompleted) {
+		// Check if timeout exceeded
+		if ((Date.now() - startTime) / 1000 > timeout) {
+			throw new NodeOperationError(
+				context.getNode(),
+				`Job timeout exceeded after ${timeout} seconds`,
+			);
+		}
+
+		// Wait for polling interval
+		await new Promise((resolve) => setTimeout(resolve, pollingInterval * 1000));
+
+		// Check job status
+		jobStatus = await ifcPipelineApiRequest.call(
+			context,
+			'GET',
+			`/jobs/${jobId}/status`,
+		);
+
+		if (jobStatus.status === 'finished') {
+			jobCompleted = true;
+			return jobStatus;
+		} else if (jobStatus.status === 'failed') {
+			throw new NodeOperationError(
+				context.getNode(),
+				`Job failed: ${jobStatus.error || 'Unknown error'}`,
+			);
+		}
+		// If status is 'queued' or 'started', continue polling
+	}
+
+	return jobStatus;
+}

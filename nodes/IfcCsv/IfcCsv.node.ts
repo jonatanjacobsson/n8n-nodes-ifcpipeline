@@ -1,7 +1,7 @@
 import { IExecuteFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
 
 export class IfcCsv implements INodeType {
 	description: INodeTypeDescription = {
@@ -172,6 +172,44 @@ export class IfcCsv implements INodeType {
 				},
 				description: 'The name of the output IFC file. If left empty, the original file will be overwritten.',
 			},
+			{
+				displayName: 'Wait for Completion',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						operation: ['exportToCsv', 'importFromCsv'],
+					},
+				},
+				description: 'Whether to wait for the job to complete before continuing',
+			},
+			{
+				displayName: 'Polling Interval (Seconds)',
+				name: 'pollingInterval',
+				type: 'number',
+				default: 2,
+				displayOptions: {
+					show: {
+						operation: ['exportToCsv', 'importFromCsv'],
+						waitForCompletion: [true],
+					},
+				},
+				description: 'How often to check the job status (in seconds)',
+			},
+			{
+				displayName: 'Timeout (Seconds)',
+				name: 'timeout',
+				type: 'number',
+				default: 300,
+				displayOptions: {
+					show: {
+						operation: ['exportToCsv', 'importFromCsv'],
+						waitForCompletion: [true],
+					},
+				},
+				description: 'Maximum time to wait for job completion (in seconds)',
+			},
 		],
 	};
 
@@ -195,6 +233,9 @@ export class IfcCsv implements INodeType {
 						query?: string;
 						attributes?: string;
 					};
+					const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
+					const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
+					const timeout = this.getNodeParameter('timeout', i, 300) as number;
 
 					const body: any = {
 						filename,
@@ -206,18 +247,26 @@ export class IfcCsv implements INodeType {
 					if (options.delimiter) body.delimiter = options.delimiter;
 					if (options.null) body.null = options.null;
 					if (options.query) body.query = options.query;
-					
+
 					// Convert comma-separated attributes to array
 					if (options.attributes) {
 						body.attributes = options.attributes.split(',').map(attr => attr.trim());
 					}
 
+					// Submit the job
 					responseData = await ifcPipelineApiRequest.call(
 						this,
 						'POST',
 						'/ifccsv',
 						body,
 					);
+
+					const jobId = responseData.job_id;
+
+					// If waitForCompletion is true, poll for job status
+					if (waitForCompletion && jobId) {
+						responseData = await pollForJobCompletion(this, jobId, pollingInterval, timeout);
+					}
 
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray(responseData as any),
@@ -230,6 +279,9 @@ export class IfcCsv implements INodeType {
 					const ifcFilename = this.getNodeParameter('ifcFilename', i) as string;
 					const csvFilename = this.getNodeParameter('csvFilename', i) as string;
 					const outputFilename = this.getNodeParameter('outputFilename', i) as string;
+					const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
+					const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
+					const timeout = this.getNodeParameter('timeout', i, 300) as number;
 
 					const body: any = {
 						ifc_filename: ifcFilename,
@@ -241,12 +293,20 @@ export class IfcCsv implements INodeType {
 						body.output_filename = outputFilename;
 					}
 
+					// Submit the job
 					responseData = await ifcPipelineApiRequest.call(
 						this,
 						'POST',
 						'/ifccsv/import',
 						body,
 					);
+
+					const jobId = responseData.job_id;
+
+					// If waitForCompletion is true, poll for job status
+					if (waitForCompletion && jobId) {
+						responseData = await pollForJobCompletion(this, jobId, pollingInterval, timeout);
+					}
 
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray(responseData as any),
@@ -270,4 +330,4 @@ export class IfcCsv implements INodeType {
 
 		return [returnData];
 	}
-} 
+}

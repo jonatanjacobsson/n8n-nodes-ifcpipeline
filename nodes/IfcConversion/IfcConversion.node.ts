@@ -1,7 +1,7 @@
 import { IExecuteFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
 
 export class IfcConversion implements INodeType {
 	description: INodeTypeDescription = {
@@ -168,12 +168,50 @@ export class IfcConversion implements INodeType {
 						name: 'weldVertices',
 						type: 'boolean',
 						default: false,
-						description: 'Whether to weld vertices during conversion',
+							description: 'Whether to weld vertices during conversion',
+						},
+					],
+				},
+				{
+					displayName: 'Wait for Completion',
+					name: 'waitForCompletion',
+					type: 'boolean',
+					default: true,
+					displayOptions: {
+						show: {
+							operation: ['convertIfc'],
+						},
 					},
-				],
-			},
-		],
-	};
+					description: 'Whether to wait for the job to complete before continuing',
+				},
+				{
+					displayName: 'Polling Interval (Seconds)',
+					name: 'pollingInterval',
+					type: 'number',
+					default: 2,
+					displayOptions: {
+						show: {
+							operation: ['convertIfc'],
+							waitForCompletion: [true],
+						},
+					},
+					description: 'How often to check the job status (in seconds)',
+				},
+				{
+					displayName: 'Timeout (Seconds)',
+					name: 'timeout',
+					type: 'number',
+					default: 300,
+					displayOptions: {
+						show: {
+							operation: ['convertIfc'],
+							waitForCompletion: [true],
+						},
+					},
+					description: 'Maximum time to wait for job completion (in seconds)',
+				},
+			],
+		};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
@@ -203,6 +241,9 @@ export class IfcConversion implements INodeType {
 						exclude?: string;
 						logFile?: string;
 					};
+					const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
+					const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
+					const timeout = this.getNodeParameter('timeout', i, 300) as number;
 
 					const body: any = {
 						input_filename: inputFilename,
@@ -220,19 +261,27 @@ export class IfcConversion implements INodeType {
 					if (options.mergeBooleanOperands !== undefined) body.merge_boolean_operands = options.mergeBooleanOperands;
 					if (options.disableOpeningSubtractions !== undefined) body.disable_opening_subtractions = options.disableOpeningSubtractions;
 					if (options.bounds) body.bounds = options.bounds;
-					
+
 					// Convert comma-separated strings to arrays
 					if (options.include) body.include = options.include.split(',').map(item => item.trim());
 					if (options.exclude) body.exclude = options.exclude.split(',').map(item => item.trim());
-					
+
 					if (options.logFile) body.log_file = options.logFile;
 
+					// Submit the job
 					responseData = await ifcPipelineApiRequest.call(
 						this,
 						'POST',
 						'/ifcconvert',
 						body,
 					);
+
+					const jobId = responseData.job_id;
+
+					// If waitForCompletion is true, poll for job status
+					if (waitForCompletion && jobId) {
+						responseData = await pollForJobCompletion(this, jobId, pollingInterval, timeout);
+					}
 
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray(responseData as any),
@@ -256,4 +305,4 @@ export class IfcConversion implements INodeType {
 
 		return [returnData];
 	}
-} 
+}
