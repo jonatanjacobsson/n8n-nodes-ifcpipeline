@@ -50,7 +50,8 @@
       "dist/nodes/IfcClash/IfcClash.node.js",
       "dist/nodes/IfcTester/IfcTester.node.js",
       "dist/nodes/IfcDiff/IfcDiff.node.js",
-      "dist/nodes/IfcQuantityTakeoff/IfcQuantityTakeoff.node.js"
+      "dist/nodes/IfcQuantityTakeoff/IfcQuantityTakeoff.node.js",
+      "dist/nodes/IfcPatch/IfcPatch.node.js"
     ]
   },
   "devDependencies": {

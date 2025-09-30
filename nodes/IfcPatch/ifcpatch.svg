@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Main file/document shape -->
+  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+  <polyline points="14 2 14 8 20 8"/>
+
+  <!-- Patch/bandage symbol in the center -->
+  <rect x="8" y="12" width="8" height="6" rx="1" fill="currentColor" opacity="0.3"/>
+  <line x1="10" y1="12" x2="10" y2="18"/>
+  <line x1="12" y1="12" x2="12" y2="18"/>
+  <line x1="14" y1="12" x2="14" y2="18"/>
+
+  <!-- Small wrench/tool icon overlay -->
+  <path d="M17 19 L19 21 M19 19 L17 21" stroke-width="1.5" opacity="0.7"/>
+</svg>
