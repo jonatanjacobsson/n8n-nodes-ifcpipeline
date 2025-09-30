@@ -1,6 +1,7 @@
 import {
 	IExecuteFunctions,
 	IHookFunctions,
+	ILoadOptionsFunctions,
 	IDataObject,
 	INodeExecutionData,
 	NodeApiError,
@@ -13,7 +14,7 @@ import {
  * Make an API request to IFC Pipeline
  */
 export async function ifcPipelineApiRequest(
-	this: IHookFunctions | IExecuteFunctions,
+	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},
@@ -51,7 +52,7 @@ export async function ifcPipelineApiRequest(
  * Make an API request to download a file
  */
 export async function ifcPipelineApiRequestDownload(
-	this: IHookFunctions | IExecuteFunctions,
+	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	body: IDataObject = {},
@@ -93,7 +94,7 @@ export async function ifcPipelineApiRequestDownload(
  * Make an API request to upload a file
  */
 export async function ifcPipelineApiRequestUpload(
-	this: IHookFunctions | IExecuteFunctions,
+	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	formData: IDataObject = {},

@@ -2,156 +2,143 @@
 
 ## Overview
 
-The IFC Patch node allows you to execute IfcPatch recipes on IFC files directly from n8n workflows. It supports both built-in recipes from IfcOpenShell and custom user-defined recipes.
+The IFC Patch node allows you to execute IfcPatch recipes on IFC files directly from n8n workflows. It features **dynamic recipe loading** that automatically populates all built-in and custom recipes in an easy-to-use dropdown.
 
-## Features
+## Key Features
 
-- **Execute Recipes**: Run any IfcPatch recipe (built-in or custom)
-- **List Recipes**: Get all available recipes with metadata
-- **Job Polling**: Automatically wait for job completion
-- **Dynamic Arguments**: Pass multiple arguments to recipes
-- **Custom Recipes**: Execute your own custom recipes
-- **Error Handling**: Built-in error handling with continue-on-fail support
+- **🎯 Dynamic Recipe Loading**: Automatically fetches and displays all available recipes (built-in + custom)
+- **📝 Recipe Descriptions**: Each recipe shows its description in the dropdown for easy selection
+- **🏷️ Smart Labeling**: Custom recipes are clearly marked with a `[Custom]` badge
+- **✨ Simplified Interface**: One unified node for all recipes - no more manual configuration
+- **🔄 Auto-Detection**: Automatically determines if a recipe is built-in or custom
+- **⚡ Streamlined UX**: Removed unnecessary operations and toggles for better user experience
 
-## Operations
+## How It Works
 
-### 1. Execute Recipe
+### 1. Select a Recipe
 
-Execute an IfcPatch recipe on an IFC file.
+When you add the IFC Patch node to your workflow:
+1. Click on the **Recipe** dropdown
+2. All available recipes are loaded automatically from your IFC Pipeline API
+3. Recipes are organized with built-in recipes first, then custom recipes (marked with `[Custom]`)
+4. Hover over any recipe to see its description
 
-#### Parameters
+### 2. Configure Parameters
+
+After selecting a recipe:
+- **Input File**: Path to your IFC file (e.g., `/uploads/model.ifc`)
+- **Output File**: Where to save the result (e.g., `/output/modified.ifc`)
+- **Arguments**: Add recipe-specific arguments as needed (see Recipe Information panel)
+
+### 3. Recipe Information Panel
+
+The node displays helpful information about common recipes and their arguments:
+- **ExtractElements**: Requires IFC query (e.g., `.IfcWall`)
+- **Optimise**: No arguments needed
+- **ResetAbsoluteCoordinates**: No arguments needed
+- **ConvertLengthUnit**: Requires target unit (e.g., `METRE`)
+
+## Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| Input File | String | Yes | Name of the input IFC file (e.g., `model.ifc`) |
-| Output File | String | Yes | Name of the output IFC file (e.g., `model_patched.ifc`) |
-| Recipe Name | String | Yes | Name of the recipe to execute (e.g., `ExtractElements`, `CeilingGrids`) |
-| Use Custom Recipe | Boolean | No | Toggle to use custom recipe instead of built-in (default: false) |
-| Recipe Arguments | Collection | No | List of arguments to pass to the recipe |
-| Wait for Completion | Boolean | No | Whether to wait for job completion (default: true) |
+| Input File | String | Yes | Path to the input IFC file |
+| Output File | String | Yes | Path for the output IFC file |
+| Recipe | Dropdown | Yes | Select from dynamically loaded recipes |
+| Arguments | Collection | No | Recipe-specific arguments (add as many as needed) |
+| Wait for Completion | Boolean | No | Whether to poll until job finishes (default: true) |
 | Polling Interval | Number | No | Seconds between status checks (default: 2) |
 | Timeout | Number | No | Maximum wait time in seconds (default: 300) |
 
-#### Examples
+## Usage Examples
 
-**Extract Walls from IFC:**
+### Example 1: Extract Walls
+
 ```json
 {
-  "inputFile": "building.ifc",
-  "outputFile": "walls_only.ifc",
+  "inputFile": "/uploads/building.ifc",
+  "outputFile": "/output/walls_only.ifc",
   "recipeName": "ExtractElements",
-  "useCustom": false,
-  "arguments": [".IfcWall"]
+  "arguments": [
+    { "value": ".IfcWall" }
+  ]
 }
 ```
 
-**Analyze Ceiling Grids (Custom Recipe):**
-```json
-{
-  "inputFile": "building.ifc",
-  "outputFile": "analyzed.ifc",
-  "recipeName": "CeilingGrids",
-  "useCustom": true,
-  "arguments": ["analyze"]
-}
-```
+### Example 2: Optimize IFC File
 
-**Optimize IFC File:**
 ```json
 {
-  "inputFile": "large_model.ifc",
-  "outputFile": "optimized.ifc",
+  "inputFile": "/uploads/large_model.ifc",
+  "outputFile": "/output/optimized.ifc",
   "recipeName": "Optimise",
-  "useCustom": false,
   "arguments": []
 }
 ```
 
-#### Output
-
-The node returns job information including:
+### Example 3: Convert Length Units
 
 ```json
 {
-  "job_id": "abc123-def456",
-  "status": "finished",
-  "result": {
-    "success": true,
-    "message": "Successfully applied recipe 'ExtractElements'",
-    "output_path": "/output/patch/walls_only.ifc",
-    "recipe": "ExtractElements",
-    "is_custom": false,
-    "output_size_bytes": 1234567,
-    "arguments_used": [".IfcWall"]
-  }
+  "inputFile": "/uploads/model.ifc",
+  "outputFile": "/output/metric.ifc",
+  "recipeName": "ConvertLengthUnit",
+  "arguments": [
+    { "value": "METRE" }
+  ]
 }
 ```
 
-### 2. List Available Recipes
-
-Get a list of all available IfcPatch recipes.
-
-#### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| Include Built-in Recipes | Boolean | No | Include built-in IfcOpenShell recipes (default: true) |
-| Include Custom Recipes | Boolean | No | Include custom user recipes (default: true) |
-
-#### Example
+### Example 4: Custom Recipe
 
 ```json
 {
-  "includeBuiltin": true,
-  "includeCustom": true
+  "inputFile": "/uploads/model.ifc",
+  "outputFile": "/output/analyzed.ifc",
+  "recipeName": "CeilingGrids",
+  "arguments": [
+    { "value": "analyze" }
+  ]
 }
 ```
 
-#### Output
+## What's New in This Version
 
-Returns a list of recipes with metadata:
+### ✅ Improvements
 
-```json
-{
-  "success": true,
-  "recipes": [
-    {
-      "name": "ExtractElements",
-      "description": "Extract specific elements from an IFC file",
-      "is_custom": false,
-      "parameters": [
-        {
-          "name": "query",
-          "type": "str",
-          "description": "Selector query for elements"
-        }
-      ],
-      "output_type": "ifcopenshell.file"
-    },
-    {
-      "name": "CeilingGrids",
-      "description": "Process ceiling grid systems in IFC models",
-      "is_custom": true,
-      "parameters": [],
-      "output_type": "ifcopenshell.file"
-    }
-  ],
-  "total_count": 46,
-  "builtin_count": 45,
-  "custom_count": 1
-}
-```
+1. **Removed "List Recipes" Operation**: No longer needed - recipes load automatically
+2. **Removed "Use Custom Recipe" Toggle**: Automatically detected from recipe metadata
+3. **Dynamic Recipe Dropdown**: All recipes load from the API with descriptions
+4. **Better Recipe Visibility**: Descriptions visible in dropdown hover
+5. **Clearer Interface**: Recipe information panel guides users on common arguments
+6. **Simpler Arguments**: Streamlined argument input without redundant name field
 
-## Usage in Workflows
+### 📊 Before vs After
+
+**Before:**
+- Manual operation selection
+- Separate "List Recipes" operation needed
+- Manual toggle for custom recipes
+- Generic text input for recipe name
+- No visibility into available recipes
+
+**After:**
+- Single unified interface
+- Recipes load automatically in dropdown
+- Custom recipes auto-detected
+- Searchable dropdown with descriptions
+- Full recipe visibility with helpful information
+
+## Workflow Examples
 
 ### Basic Workflow
 
 ```
 Manual Trigger
   ↓
-Set Input Parameters
+Set Variables (input/output paths)
   ↓
-IFC Patch (Execute Recipe)
+IFC Patch (select recipe from dropdown)
   ↓
 Process Result
 ```
@@ -161,173 +148,241 @@ Process Result
 ```
 Upload IFC File
   ↓
-IFC Patch (List Recipes) ──→ Display Available Recipes
+IFC Patch (Optimise)
   ↓
-IFC Patch (Execute Recipe)
+IFC Patch (ResetAbsoluteCoordinates)
   ↓
-Check Job Status
+IFC Patch (ExtractElements)
   ↓
 Download Result
-  ↓
-Send Notification
 ```
 
-### Example: Extract Walls Workflow
+## Available Recipes
 
-1. **Upload IFC File** node
-   - Upload `building.ifc` to IFC Pipeline
+### Built-in Recipes (45+)
 
-2. **IFC Patch** node
-   - Operation: Execute Recipe
-   - Input File: `building.ifc`
-   - Output File: `walls.ifc`
-   - Recipe Name: `ExtractElements`
-   - Arguments: `.IfcWall`
+The node automatically loads all IfcOpenShell built-in recipes including:
 
-3. **Download Result** node
-   - Download the processed `walls.ifc` file
-
-### Example: Custom Recipe Workflow
-
-1. **Manual Trigger**
-
-2. **IFC Patch** node
-   - Operation: Execute Recipe
-   - Input File: `model.ifc`
-   - Output File: `analyzed.ifc`
-   - Recipe Name: `CeilingGrids`
-   - Use Custom Recipe: `true`
-   - Arguments: 
-     - `analyze`
-
-3. **Process Results** node
-   - Parse the analysis results
-
-## Built-in Recipes
-
-Some commonly used built-in recipes:
-
-- **ExtractElements** - Extract specific IFC elements
-- **ConvertLengthUnit** - Convert measurement units
+- **ExtractElements** - Extract specific IFC elements by query
+- **Optimise** - Optimize IFC file size and structure
+- **ConvertLengthUnit** - Convert between measurement units
 - **MergeProjects** - Merge multiple IFC files
-- **Optimise** - Optimize file size
 - **Migrate** - Migrate between IFC schemas
 - **ResetAbsoluteCoordinates** - Reset coordinate system
 - **SplitByBuildingStorey** - Split by building levels
+- And 38+ more...
 
-See [IfcPatch Documentation](https://docs.ifcopenshell.org/autoapi/ifcpatch/recipes/index.html) for the complete list.
+### Custom Recipes
 
-## Custom Recipes
+Any custom recipes added to your IFC Pipeline worker are automatically available:
+- Marked with `[Custom]` badge in the dropdown
+- Loaded dynamically with built-in recipes
+- No configuration needed
 
-Custom recipes can be created in the IFC Pipeline worker. Once added to the `/ifcpatch-worker/custom_recipes/` directory, they become available to this node.
+To add custom recipes, place them in:
+```
+/path/to/ifc-pipeline/ifcpatch-worker/custom_recipes/
+```
 
-### Creating a Custom Recipe
+## Recipe Arguments Guide
 
-1. Copy the template in `ifc-pipeline/ifcpatch-worker/custom_recipes/example_recipe.py`
-2. Implement your custom logic
-3. Deploy to the worker
-4. Use in n8n with `Use Custom Recipe: true`
+Different recipes require different arguments. Here's a quick reference:
 
-See the [Custom Recipes README](../../../ifc-pipeline/ifcpatch-worker/custom_recipes/README.md) for details.
+| Recipe | Arguments | Example |
+|--------|-----------|---------|
+| ExtractElements | IFC query string | `.IfcWall` or `.IfcSlab` |
+| ConvertLengthUnit | Target unit | `METRE`, `FOOT`, `MILLIMETRE` |
+| MergeProjects | IFC file paths | `/uploads/file1.ifc`, `/uploads/file2.ifc` |
+| Optimise | None | - |
+| ResetAbsoluteCoordinates | None | - |
+| Migrate | Target schema | `IFC4`, `IFC2X3` |
+
+> **Tip**: Hover over the Recipe dropdown to see specific argument requirements for each recipe.
 
 ## Job Polling
 
-When "Wait for Completion" is enabled (default), the node automatically polls the IFC Pipeline API for job status:
+When "Wait for Completion" is enabled (default), the node automatically polls for job status:
 
-- **Polling Interval**: How often to check (default: 2 seconds)
-- **Timeout**: Maximum wait time (default: 300 seconds)
-- **Status Tracking**: Monitors job progress (queued → started → finished)
+- Checks job status at regular intervals (default: every 2 seconds)
+- Returns when job finishes or fails
+- Times out after specified duration (default: 300 seconds)
+- Shows job progress in execution data
 
-If polling is disabled, the node returns immediately with the job ID, and you can check status using the "Check Job Status" operation in other nodes.
+If polling is disabled, the node returns immediately with a `job_id` that you can use to check status later.
 
 ## Error Handling
 
 The node provides comprehensive error handling:
 
-- **Invalid Recipe**: Error if recipe doesn't exist
-- **File Not Found**: Error if input file doesn't exist
-- **Job Timeout**: Error if job exceeds timeout
-- **Job Failed**: Error if recipe execution fails
-- **Continue on Fail**: Option to continue workflow on errors
+- **Recipe Not Found**: Validates recipe exists before execution
+- **Invalid Arguments**: Clear error messages for incorrect arguments
+- **Job Timeout**: Configurable timeout prevents indefinite waiting
+- **Connection Errors**: Graceful handling of API connection issues
+- **Continue on Fail**: Option to continue workflow despite errors
 
 ## Configuration
 
 ### Credentials
 
-The node requires IFC Pipeline API credentials:
-
-1. Add credentials: **IFC Pipeline API**
+1. Add **IFC Pipeline API** credentials
 2. Configure:
-   - **URL**: Your IFC Pipeline URL (e.g., `http://localhost:8000`)
-   - **API Key**: Your API key
+   - **Base URL**: Your IFC Pipeline URL (e.g., `http://localhost:8000`)
+   - **API Key**: Your authentication key
 
 ### Node Settings
 
-- **Always Output Data**: Enable to get data even on errors
-- **Continue On Fail**: Enable to continue workflow on errors
+- **Always Output Data**: Enable to see error details
+- **Continue On Fail**: Enable for robust workflows
 - **Retry On Fail**: Configure retry attempts
 
 ## Tips and Best Practices
 
-1. **Use Descriptive Output Names**: Name your output files clearly (e.g., `building_walls_only.ifc`)
+### 1. Finding the Right Recipe
 
-2. **Start with List Recipes**: Use the "List Recipes" operation first to discover available recipes
+Use the search feature in the Recipe dropdown:
+- Type keywords to filter recipes
+- Read descriptions to understand functionality
+- Custom recipes are clearly marked
 
-3. **Test Custom Recipes**: Test custom recipes in isolation before using in workflows
+### 2. Understanding Arguments
 
-4. **Monitor Job Times**: Adjust timeout based on file size and recipe complexity
+- Check the Recipe Information panel for common examples
+- Hover over recipe descriptions for specific requirements
+- Start with simple recipes (e.g., Optimise) to test your setup
 
-5. **Use Error Handling**: Enable "Continue on Fail" for robust workflows
+### 3. Chaining Operations
 
-6. **Chain Operations**: Combine multiple IfcPatch operations in sequence
+Chain multiple IFC Patch nodes together:
+```
+IFC Patch (Optimise)
+  ↓
+IFC Patch (ResetAbsoluteCoordinates)
+  ↓
+IFC Patch (ExtractElements)
+```
 
-7. **Log Results**: Capture job results for debugging and auditing
+### 4. Performance Optimization
+
+- Adjust timeout based on file size
+- Use larger polling intervals for long operations
+- Consider disabling polling for batch operations
+
+### 5. Testing New Recipes
+
+When exploring new recipes:
+1. Start with a small test file
+2. Use default timeout settings
+3. Check execution output for result details
+4. Review IFC Pipeline logs if needed
 
 ## Troubleshooting
 
-### Recipe Not Found
-- Verify recipe name spelling
-- Check if recipe exists using "List Recipes" operation
-- Ensure "Use Custom Recipe" toggle is correct
+### Recipes Not Loading
 
-### Job Timeout
-- Increase timeout value
-- Check IFC Pipeline worker logs
-- Verify file is not corrupted
+**Problem**: Dropdown shows "Error loading recipes"
 
-### Authentication Failed
+**Solutions**:
 - Verify API credentials are correct
-- Check API key has proper permissions
-- Ensure IFC Pipeline URL is accessible
+- Check IFC Pipeline is running and accessible
+- Ensure API endpoint `/patch/recipes/list` is available
+- Check network connectivity
 
-### File Not Found
-- Ensure file was uploaded successfully
-- Check file path in IFC Pipeline
-- Verify file permissions
+### Recipe Execution Fails
+
+**Problem**: Job fails or times out
+
+**Solutions**:
+- Verify input file exists at specified path
+- Check recipe name matches selection
+- Ensure arguments are in correct format
+- Review IFC Pipeline worker logs: `docker-compose logs ifcpatch-worker`
+- Increase timeout for large files
+
+### Custom Recipes Not Appearing
+
+**Problem**: Custom recipe not in dropdown
+
+**Solutions**:
+- Verify recipe file is in `custom_recipes/` directory
+- Check recipe follows required format
+- Restart IFC Pipeline worker
+- Check worker logs for loading errors
+
+### Arguments Not Working
+
+**Problem**: Recipe doesn't accept arguments
+
+**Solutions**:
+- Check recipe description for required format
+- Ensure argument order matches recipe expectations
+- Try with simpler values first
+- Review recipe documentation
+
+## Monitoring and Debugging
+
+### Execution Data
+
+The node returns detailed execution data:
+```json
+{
+  "job_id": "abc123-def456",
+  "status": "finished",
+  "result": {
+    "success": true,
+    "message": "Successfully applied recipe 'ExtractElements'",
+    "output_path": "/output/patch/walls.ifc",
+    "recipe": "ExtractElements",
+    "is_custom": false,
+    "output_size_bytes": 1234567,
+    "arguments_used": [".IfcWall"]
+  }
+}
+```
+
+### Worker Logs
+
+Monitor IFC Pipeline worker:
+```bash
+docker-compose logs -f ifcpatch-worker
+```
+
+### Job Status
+
+Check job status via API:
+```bash
+curl -X GET "http://localhost:8000/jobs/{job_id}/status" \
+  -H "X-API-Key: your-api-key"
+```
 
 ## API Integration
 
 The node integrates with these IFC Pipeline endpoints:
 
+- `POST /patch/recipes/list` - Load available recipes (used by dropdown)
 - `POST /patch/execute` - Execute a recipe
-- `POST /patch/recipes/list` - List available recipes
-- `GET /jobs/{job_id}/status` - Check job status
+- `GET /jobs/{job_id}/status` - Check job status (polling)
 
 ## Version History
 
-- **v1.0** (2025-01-01)
+- **v1.1** (Current)
+  - Dynamic recipe dropdown with auto-loading
+  - Automatic custom recipe detection
+  - Improved UX with recipe information panel
+  - Removed unnecessary operations
+  - Better error handling
+
+- **v1.0**
   - Initial release
-  - Execute Recipe operation
-  - List Available Recipes operation
-  - Job polling support
-  - Custom recipe support
+  - Manual recipe name input
+  - Separate list/execute operations
 
 ## Support
 
 For issues or questions:
-- Check IFC Pipeline logs: `docker-compose logs ifcpatch-worker`
-- Review [Implementation Guide](../../../ifc-pipeline/IFCPATCH_WORKER_IMPLEMENTATION_SUMMARY.md)
-- Consult [IfcPatch Documentation](https://docs.ifcopenshell.org/ifcpatch.html)
+- Check this README for common solutions
+- Review [IfcPatch Documentation](https://docs.ifcopenshell.org/ifcpatch.html)
+- Check IFC Pipeline logs
+- Review n8n execution data
 
 ## License
 
