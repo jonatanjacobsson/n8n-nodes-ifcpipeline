@@ -1,7 +1,7 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 export class IfcClash implements INodeType {
 	description: INodeTypeDescription = {
@@ -66,6 +66,7 @@ export class IfcClash implements INodeType {
 					},
 				},
 				description: 'The name of the output file',
+				placeholder: 'clash_report.bcf',
 			},
 			{
 				displayName: 'Group A Files',
@@ -87,11 +88,15 @@ export class IfcClash implements INodeType {
 						displayName: 'Files',
 						values: [
 							{
-								displayName: 'File Path',
+								displayName: 'File Path Name or ID',
 								name: 'file',
-								type: 'string',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getIfcFiles',
+								},
 								default: '',
-								description: 'Path to the IFC file',
+								description: 'Select the IFC file. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+								placeholder: 'Select an IFC file...',
 							},
 							{
 								displayName: 'Selector',
@@ -99,6 +104,8 @@ export class IfcClash implements INodeType {
 								type: 'string',
 								default: '',
 								description: 'Selector to filter elements in the file',
+								placeholder: 'IfcWall',
+								hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 							},
 							{
 								displayName: 'Mode',
@@ -143,11 +150,15 @@ export class IfcClash implements INodeType {
 						displayName: 'Files',
 						values: [
 							{
-								displayName: 'File Path',
+								displayName: 'File Path Name or ID',
 								name: 'file',
-								type: 'string',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getIfcFiles',
+								},
 								default: '',
-								description: 'Path to the IFC file',
+								description: 'Select the IFC file. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+								placeholder: 'Select an IFC file...',
 							},
 							{
 								displayName: 'Selector',
@@ -155,6 +166,8 @@ export class IfcClash implements INodeType {
 								type: 'string',
 								default: '',
 								description: 'Selector to filter elements in the file',
+								placeholder: 'IfcPipeSegment',
+								hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 							},
 							{
 								displayName: 'Mode',
@@ -300,6 +313,15 @@ export class IfcClash implements INodeType {
 				description: 'Maximum time to wait for job completion (in seconds)',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

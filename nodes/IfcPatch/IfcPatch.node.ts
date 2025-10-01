@@ -1,7 +1,7 @@
 import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 // Interface for recipe metadata from API
 interface RecipeParameter {
@@ -41,13 +41,16 @@ export class IfcPatch implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Input File',
+				displayName: 'Input File Name or ID',
 				name: 'inputFile',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
-				description: 'The path or name of the input IFC file',
-				placeholder: '/uploads/model.ifc',
+				description: 'Select the input IFC file from available files. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
 				displayName: 'Output File',
@@ -56,10 +59,10 @@ export class IfcPatch implements INodeType {
 				default: '',
 				required: true,
 				description: 'The path or name of the output IFC file',
-				placeholder: '/output/model_patched.ifc',
+				placeholder: '/output/ifc/Building-Architecture_patched.ifc',
 			},
 			{
-				displayName: 'Recipe',
+				displayName: 'Recipe Name or ID',
 				name: 'recipeName',
 				type: 'options',
 				typeOptions: {
@@ -67,15 +70,66 @@ export class IfcPatch implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'Select the IfcPatch recipe to execute. Recipes marked with [Custom] are user-defined scripts. The recipe description is shown in the dropdown.',
+				description: 'Select the IfcPatch recipe to execute. Recipes marked with [Custom] are user-defined scripts. The recipe description is shown in the dropdown. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				placeholder: 'Select a recipe...',
 			},
 			{
 				displayName: 'Recipe Information',
 				name: 'recipeInfo',
 				type: 'notice',
-				default: 'ℹ️ Each recipe has specific arguments. Common recipes:<br/>• <strong>ExtractElements</strong>: Requires IFC query (e.g., ".IfcWall")<br/>• <strong>Optimise</strong>: No arguments needed<br/>• <strong>ResetAbsoluteCoordinates</strong>: No arguments needed<br/>• <strong>ConvertLengthUnit</strong>: Requires target unit (e.g., "METRE")<br/><br/>Hover over the Recipe dropdown to see each recipe\'s description.',
+				default: 'ℹ️ Select a recipe above to see its required parameters below.',
+				displayOptions: {
+					show: {
+						recipeName: [''],
+					},
+				},
 			},
+			// Common recipe: ExtractElements parameters
+			{
+				displayName: 'Query',
+				name: 'param_query',
+				type: 'string',
+				displayOptions: {
+					show: {
+						recipeName: ['ExtractElements'],
+					},
+				},
+				default: 'IfcWall',
+				description: 'A query to select the subset of IFC elements',
+				placeholder: 'IfcWall',
+			},
+			{
+				displayName: 'Assume Asset Uniqueness By Name',
+				name: 'param_assume_asset_uniqueness_by_name',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						recipeName: ['ExtractElements'],
+					},
+				},
+				default: true,
+				description: 'Whether to avoid adding assets (profiles, materials, styles) with the same name multiple times. Assumes different project assets use different names.',
+			},
+			// Common recipe: ConvertLengthUnit parameters
+			{
+				displayName: 'Target Unit',
+				name: 'param_unit',
+				type: 'options',
+				displayOptions: {
+					show: {
+						recipeName: ['ConvertLengthUnit'],
+					},
+				},
+				options: [
+					{ name: 'Metre', value: 'METRE' },
+					{ name: 'Millimetre', value: 'MILLIMETRE' },
+					{ name: 'Foot', value: 'FOOT' },
+					{ name: 'Inch', value: 'INCH' },
+				],
+				default: 'METRE',
+				description: 'The target length unit for conversion',
+			},
+			// Fallback for other recipes - generic arguments
 			{
 				displayName: 'Arguments',
 				name: 'argumentsUi',
@@ -83,8 +137,13 @@ export class IfcPatch implements INodeType {
 				typeOptions: {
 					multipleValues: true,
 				},
+				displayOptions: {
+					hide: {
+						recipeName: ['ExtractElements', 'ConvertLengthUnit', ''],
+					},
+				},
 				default: {},
-				description: 'Arguments to pass to the recipe. The number and type of arguments depend on the selected recipe. Check the recipe description for required arguments.',
+				description: 'Arguments to pass to the recipe. The number and type of arguments depend on the selected recipe. Add arguments in order.',
 				placeholder: 'Add Argument',
 				options: [
 					{
@@ -96,12 +155,24 @@ export class IfcPatch implements INodeType {
 								name: 'value',
 								type: 'string',
 								default: '',
-								description: 'Argument value (e.g., ".IfcWall" for ExtractElements, "METRE" for ConvertLengthUnit)',
+								description: 'Argument value',
 								placeholder: 'Enter argument value',
 							},
 						],
 					},
 				],
+			},
+			// Notice for recipes without explicit parameter definitions
+			{
+				displayName: 'Using Generic Arguments',
+				name: 'genericArgsNotice',
+				type: 'notice',
+				displayOptions: {
+					show: {
+						recipeName: [''],
+					},
+				},
+				default: '⚠️ This recipe doesn\'t have explicit parameter definitions. Use the Arguments collection below and add values in the correct order. Refer to the IfcPatch documentation for parameter details.',
 			},
 			{
 				displayName: 'Wait for Completion',
@@ -139,6 +210,10 @@ export class IfcPatch implements INodeType {
 
 	methods = {
 		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
 			// Get all available recipes (built-in and custom)
 			async getRecipes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				try {
@@ -154,12 +229,17 @@ export class IfcPatch implements INodeType {
 					);
 
 					const recipes = responseData.recipes as Recipe[];
-					
-					// Transform recipes into dropdown options
+
+					// Store recipes in context for use in parameter generation
+					// Note: n8n doesn't have a built-in context store, so we'll fetch again in execute
+
+					// Transform recipes into dropdown options with parameter count info
 					const options: INodePropertyOptions[] = recipes.map((recipe: Recipe) => {
 						const badge = recipe.is_custom ? ' [Custom]' : '';
+						const paramCount = recipe.parameters?.length || 0;
+						const paramInfo = paramCount > 0 ? ` (${paramCount} param${paramCount > 1 ? 's' : ''})` : '';
 						return {
-							name: `${recipe.name}${badge}`,
+							name: `${recipe.name}${badge}${paramInfo}`,
 							value: recipe.name,
 							description: recipe.description || `Execute the ${recipe.name} recipe`,
 						};
@@ -169,7 +249,7 @@ export class IfcPatch implements INodeType {
 					options.sort((a, b) => {
 						const aIsCustom = a.name.includes('[Custom]');
 						const bIsCustom = b.name.includes('[Custom]');
-						
+
 						if (aIsCustom === bIsCustom) {
 							return a.name.localeCompare(b.name);
 						}
@@ -181,7 +261,7 @@ export class IfcPatch implements INodeType {
 					// Return empty array on error with a helpful message
 					return [
 						{
-							name: 'Error loading recipes',
+							name: 'Error Loading Recipes',
 							value: '',
 							description: 'Failed to load recipes. Please check your API credentials and connection.',
 						},
@@ -206,15 +286,30 @@ export class IfcPatch implements INodeType {
 				const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
 				const timeout = this.getNodeParameter('timeout', i, 300) as number;
 
-				// Parse arguments from fixedCollection
-				const argumentsUi = this.getNodeParameter('argumentsUi', i, {}) as {
-					argumentValues?: Array<{ name?: string; value: string }>;
-				};
-				const args: string[] = [];
-				if (argumentsUi.argumentValues) {
-					for (const arg of argumentsUi.argumentValues) {
-						if (arg.value) {
-							args.push(arg.value);
+				// Build arguments based on recipe type
+				const args: any[] = [];
+
+				// Check if recipe has explicit parameters defined
+				if (recipeName === 'ExtractElements') {
+					// ExtractElements parameters: query, assume_asset_uniqueness_by_name
+					const query = this.getNodeParameter('param_query', i, 'IfcWall') as string;
+					const assumeUniqueness = this.getNodeParameter('param_assume_asset_uniqueness_by_name', i, true) as boolean;
+					args.push(query);
+					args.push(assumeUniqueness);
+				} else if (recipeName === 'ConvertLengthUnit') {
+					// ConvertLengthUnit parameters: unit
+					const unit = this.getNodeParameter('param_unit', i, 'METRE') as string;
+					args.push(unit);
+				} else {
+					// Fallback: parse arguments from fixedCollection
+					const argumentsUi = this.getNodeParameter('argumentsUi', i, {}) as {
+						argumentValues?: Array<{ name?: string; value: string }>;
+					};
+					if (argumentsUi.argumentValues) {
+						for (const arg of argumentsUi.argumentValues) {
+							if (arg.value) {
+								args.push(arg.value);
+							}
 						}
 					}
 				}
@@ -231,7 +326,7 @@ export class IfcPatch implements INodeType {
 							include_custom: true,
 						},
 					);
-					
+
 					const recipe = recipesData.recipes?.find((r: Recipe) => r.name === recipeName);
 					if (recipe) {
 						isCustom = recipe.is_custom;

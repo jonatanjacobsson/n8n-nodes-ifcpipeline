@@ -1,7 +1,7 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 export class IfcToJson implements INodeType {
 	description: INodeTypeDescription = {
@@ -48,9 +48,12 @@ export class IfcToJson implements INodeType {
 
 			// Convert to JSON
 			{
-				displayName: 'IFC Filename',
+				displayName: 'IFC Filename Name or ID',
 				name: 'filename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -58,7 +61,8 @@ export class IfcToJson implements INodeType {
 						operation: ['convertToJson'],
 					},
 				},
-				description: 'The name of the IFC file to convert',
+				description: 'Select the IFC file to convert. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
 				displayName: 'Output Filename',
@@ -72,13 +76,17 @@ export class IfcToJson implements INodeType {
 					},
 				},
 				description: 'The name of the output JSON file',
+				placeholder: '/output/json/Building-Architecture.json',
 			},
 
 			// Get JSON
 			{
-				displayName: 'Filename',
+				displayName: 'Filename Name or ID',
 				name: 'getFilename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getJsonFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -86,7 +94,8 @@ export class IfcToJson implements INodeType {
 						operation: ['getJson'],
 					},
 				},
-				description: 'The name of the JSON file to retrieve',
+				description: 'Select the JSON file to retrieve. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select a JSON file...',
 			},
 			{
 				displayName: 'Wait for Completion',
@@ -127,6 +136,19 @@ export class IfcToJson implements INodeType {
 				description: 'Maximum time to wait for job completion (in seconds)',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
+			// Get all available JSON files
+			async getJsonFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.json']);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

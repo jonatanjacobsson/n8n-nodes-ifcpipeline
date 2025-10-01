@@ -4,6 +4,7 @@ import {
 	ILoadOptionsFunctions,
 	IDataObject,
 	INodeExecutionData,
+	INodePropertyOptions,
 	NodeApiError,
 	NodeOperationError,
 	IRequestOptions,
@@ -218,4 +219,59 @@ export async function pollForJobCompletion(
 	}
 
 	return jobStatus;
+}
+
+/**
+ * Get available files from the API - used for file picker dropdowns
+ * Can optionally filter by file extension
+ */
+export async function getFiles(
+	this: ILoadOptionsFunctions,
+	extensions?: string[],
+): Promise<INodePropertyOptions[]> {
+	try {
+		// Fetch files from the API
+		const responseData = await ifcPipelineApiRequest.call(
+			this,
+			'GET',
+			'/list_directories',
+		);
+
+		let files = responseData.files as string[];
+
+		// Filter by extensions if provided
+		if (extensions && extensions.length > 0) {
+			files = files.filter((file: string) => {
+				return extensions.some(ext => file.toLowerCase().endsWith(ext.toLowerCase()));
+			});
+		}
+
+		// Transform files into dropdown options
+		const options: INodePropertyOptions[] = files.map((file: string) => {
+			// Extract just the filename for display
+			const filename = file.split('/').pop() || file;
+			// Determine the directory for the description
+			const dir = file.substring(0, file.lastIndexOf('/')) || '/';
+
+			return {
+				name: file, // Show full path
+				value: file,
+				description: `${filename} (in ${dir})`,
+			};
+		});
+
+		// Sort options alphabetically by name
+		options.sort((a, b) => a.name.localeCompare(b.name));
+
+		return options;
+	} catch (error) {
+		// Return empty array on error with a helpful message
+		return [
+			{
+				name: 'Error loading files',
+				value: '',
+				description: 'Failed to load files. Please check your API credentials and connection.',
+			},
+		];
+	}
 }

@@ -1,7 +1,7 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 export class IfcTester implements INodeType {
 	description: INodeTypeDescription = {
@@ -42,9 +42,12 @@ export class IfcTester implements INodeType {
 
 			// Validate IFC
 			{
-				displayName: 'IFC Filename',
+				displayName: 'IFC Filename Name or ID',
 				name: 'ifcFilename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -52,12 +55,16 @@ export class IfcTester implements INodeType {
 						operation: ['validateIfc'],
 					},
 				},
-				description: 'The name of the IFC file to validate',
+				description: 'Select the IFC file to validate. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
-				displayName: 'IDS Filename',
+				displayName: 'IDS Filename Name or ID',
 				name: 'idsFilename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIdsFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -65,7 +72,8 @@ export class IfcTester implements INodeType {
 						operation: ['validateIfc'],
 					},
 				},
-				description: 'The name of the IDS specification file',
+				description: 'Select the IDS specification file. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IDS file...',
 			},
 			{
 				displayName: 'Output Filename',
@@ -79,6 +87,7 @@ export class IfcTester implements INodeType {
 					},
 				},
 				description: 'The name of the output report file',
+				placeholder: '/output/reports/validation_report.html',
 			},
 			{
 				displayName: 'Report Type',
@@ -145,6 +154,19 @@ export class IfcTester implements INodeType {
 				description: 'Maximum time to wait for job completion (in seconds)',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
+			// Get all available IDS files
+			async getIdsFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ids', '.xml']);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

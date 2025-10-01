@@ -1,7 +1,7 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 export class IfcConversion implements INodeType {
 	description: INodeTypeDescription = {
@@ -42,9 +42,12 @@ export class IfcConversion implements INodeType {
 
 			// Convert IFC
 			{
-				displayName: 'Input Filename',
+				displayName: 'Input Filename Name or ID',
 				name: 'inputFilename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -52,7 +55,8 @@ export class IfcConversion implements INodeType {
 						operation: ['convertIfc'],
 					},
 				},
-				description: 'The name of the input IFC file',
+				description: 'Select the input IFC file from available files. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
 				displayName: 'Output Filename',
@@ -66,6 +70,7 @@ export class IfcConversion implements INodeType {
 					},
 				},
 				description: 'The name of the output file',
+				placeholder: '/output/glb/Building-Architecture.glb',
 			},
 			{
 				displayName: 'Options',
@@ -106,6 +111,7 @@ export class IfcConversion implements INodeType {
 						type: 'string',
 						default: '',
 						description: 'Comma-separated list of elements to exclude from the conversion',
+						hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> for each item (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 					},
 					{
 						displayName: 'Include',
@@ -113,6 +119,7 @@ export class IfcConversion implements INodeType {
 						type: 'string',
 						default: '',
 						description: 'Comma-separated list of elements to include in the conversion',
+						hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> for each item (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 					},
 					{
 						displayName: 'Log File',
@@ -212,6 +219,15 @@ export class IfcConversion implements INodeType {
 				},
 			],
 		};
+
+	methods = {
+		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
+		},
+	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();

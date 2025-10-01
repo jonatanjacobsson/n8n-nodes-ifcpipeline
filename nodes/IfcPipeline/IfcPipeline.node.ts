@@ -1,6 +1,6 @@
-import { IExecuteFunctions } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
-import { handleBinaryData, ifcPipelineApiRequest, ifcPipelineApiRequestDownload, ifcPipelineApiRequestUpload } from '../shared/GenericFunctions';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
+import { INodeExecutionData, INodeType, INodeTypeDescription, NodeConnectionType, INodePropertyOptions } from 'n8n-workflow';
+import { handleBinaryData, ifcPipelineApiRequest, ifcPipelineApiRequestDownload, ifcPipelineApiRequestUpload, getFiles } from '../shared/GenericFunctions';
 import { NodeOperationError } from 'n8n-workflow';
 
 export class IfcPipeline implements INodeType {
@@ -30,6 +30,12 @@ export class IfcPipeline implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
+					{
+						name: 'Create Viewer Link',
+						value: 'createViewerLink',
+						description: 'Create a preview link for IFC Viewer',
+						action: 'Create a preview link for ifc viewer',
+					},
 					{
 						name: 'Download File',
 						value: 'downloadFile',
@@ -77,6 +83,25 @@ export class IfcPipeline implements INodeType {
 					},
 				},
 				options: [],
+			},
+
+			// Create Viewer Link
+			{
+				displayName: 'File Path Name or ID',
+				name: 'filePath',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getAllFiles',
+				},
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						operation: ['createViewerLink'],
+					},
+				},
+				description: 'Select the file to create a viewer link for. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select a file...',
 			},
 
 			// Upload File
@@ -127,9 +152,12 @@ export class IfcPipeline implements INodeType {
 
 			// Download File
 			{
-				displayName: 'File Path',
+				displayName: 'File Path Name or ID',
 				name: 'filePath',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getAllFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -137,7 +165,8 @@ export class IfcPipeline implements INodeType {
 						operation: ['downloadFile'],
 					},
 				},
-				description: 'Path of the file to download',
+				description: 'Select the file to download. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select a file...',
 			},
 			{
 				displayName: 'Binary Property',
@@ -166,6 +195,7 @@ export class IfcPipeline implements INodeType {
 					},
 				},
 				description: 'URL of the file to download',
+				placeholder: 'https://example.com/model.ifc',
 			},
 			{
 				displayName: 'Filename',
@@ -178,6 +208,7 @@ export class IfcPipeline implements INodeType {
 					},
 				},
 				description: 'Optional: Custom filename for the downloaded file. If not provided, the original filename from the URL will be used.',
+				placeholder: 'Building-Architecture.ifc',
 			},
 
 			// Get Job Status
@@ -193,8 +224,18 @@ export class IfcPipeline implements INodeType {
 					},
 				},
 				description: 'ID of the job to get status for',
+				placeholder: '123e4567-e89b-12d3-a456-426614174000',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			// Get all available files (no filter)
+			async getAllFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -212,6 +253,25 @@ export class IfcPipeline implements INodeType {
 						this,
 						'GET',
 						'/list_directories',
+					);
+
+					const executionData = this.helpers.constructExecutionMetaData(
+						this.helpers.returnJsonArray(responseData as any),
+						{ itemData: { item: i } },
+					);
+
+					returnData.push(...executionData);
+				} else if (operation === 'createViewerLink') {
+					// Create viewer link
+					const filePath = this.getNodeParameter('filePath', i) as string;
+
+					responseData = await ifcPipelineApiRequest.call(
+						this,
+						'POST',
+						'/create_download_link',
+						{
+							file_path: filePath,
+						},
 					);
 
 					const executionData = this.helpers.constructExecutionMetaData(

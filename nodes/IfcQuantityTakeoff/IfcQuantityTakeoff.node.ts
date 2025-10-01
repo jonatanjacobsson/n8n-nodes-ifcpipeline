@@ -1,7 +1,7 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 export class IfcQuantityTakeoff implements INodeType {
 	description: INodeTypeDescription = {
@@ -42,9 +42,12 @@ export class IfcQuantityTakeoff implements INodeType {
 
 			// Calculate Quantities
 			{
-				displayName: 'Input File',
+				displayName: 'Input File Name or ID',
 				name: 'inputFile',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -52,7 +55,8 @@ export class IfcQuantityTakeoff implements INodeType {
 						operation: ['calculateQuantities'],
 					},
 				},
-				description: 'The name of the input IFC file',
+				description: 'Select the input IFC file. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
 				displayName: 'Output File',
@@ -65,6 +69,7 @@ export class IfcQuantityTakeoff implements INodeType {
 					},
 				},
 				description: 'The name of the output IFC file. If left empty, the calculation results will be returned without modifying the original file.',
+				placeholder: '/output/ifc/Building-Architecture_with_qtos.ifc',
 			},
 			{
 				displayName: 'Wait for Completion',
@@ -105,6 +110,15 @@ export class IfcQuantityTakeoff implements INodeType {
 				description: 'Maximum time to wait for job completion (in seconds)',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

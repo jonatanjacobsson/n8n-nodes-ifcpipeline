@@ -1,7 +1,7 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 export class IfcCsv implements INodeType {
 	description: INodeTypeDescription = {
@@ -48,9 +48,12 @@ export class IfcCsv implements INodeType {
 
 			// Export to CSV
 			{
-				displayName: 'IFC Filename',
+				displayName: 'IFC Filename Name or ID',
 				name: 'filename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -58,7 +61,8 @@ export class IfcCsv implements INodeType {
 						operation: ['exportToCsv'],
 					},
 				},
-				description: 'The name of the IFC file to export',
+				description: 'Select the IFC file to export. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
 				displayName: 'Output Filename',
@@ -72,6 +76,7 @@ export class IfcCsv implements INodeType {
 					},
 				},
 				description: 'The name of the output CSV file',
+				placeholder: '/output/csv/Building-Architecture_export.csv',
 			},
 			{
 				displayName: 'Options',
@@ -129,15 +134,19 @@ export class IfcCsv implements INodeType {
 						type: 'string',
 						default: 'IfcProduct',
 						description: 'The query to filter the IFC data',
+						hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 					},
 				],
 			},
 
 			// Import from CSV
 			{
-				displayName: 'IFC Filename',
+				displayName: 'IFC Filename Name or ID',
 				name: 'ifcFilename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -145,12 +154,16 @@ export class IfcCsv implements INodeType {
 						operation: ['importFromCsv'],
 					},
 				},
-				description: 'The name of the IFC file to import into',
+				description: 'Select the IFC file to import into. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
-				displayName: 'CSV Filename',
+				displayName: 'CSV Filename Name or ID',
 				name: 'csvFilename',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getCsvFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -158,7 +171,8 @@ export class IfcCsv implements INodeType {
 						operation: ['importFromCsv'],
 					},
 				},
-				description: 'The name of the CSV file to import',
+				description: 'Select the CSV file to import. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select a CSV file...',
 			},
 			{
 				displayName: 'Output Filename',
@@ -171,6 +185,7 @@ export class IfcCsv implements INodeType {
 					},
 				},
 				description: 'The name of the output IFC file. If left empty, the original file will be overwritten.',
+				placeholder: '/output/ifc/Building-Architecture_updated.ifc',
 			},
 			{
 				displayName: 'Wait for Completion',
@@ -211,6 +226,19 @@ export class IfcCsv implements INodeType {
 				description: 'Maximum time to wait for job completion (in seconds)',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
+			// Get all available CSV files
+			async getCsvFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.csv', '.xlsx']);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

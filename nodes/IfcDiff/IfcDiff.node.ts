@@ -1,7 +1,7 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
-import { ifcPipelineApiRequest } from '../shared/GenericFunctions';
+import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import { ifcPipelineApiRequest, getFiles } from '../shared/GenericFunctions';
 
 export class IfcDiff implements INodeType {
 	description: INodeTypeDescription = {
@@ -42,9 +42,12 @@ export class IfcDiff implements INodeType {
 
 			// Compare IFC Files
 			{
-				displayName: 'Old File',
+				displayName: 'Old File Name or ID',
 				name: 'oldFile',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -52,12 +55,16 @@ export class IfcDiff implements INodeType {
 						operation: ['compareIfcFiles'],
 					},
 				},
-				description: 'The name of the old IFC file',
+				description: 'Select the old IFC file from available files. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
-				displayName: 'New File',
+				displayName: 'New File Name or ID',
 				name: 'newFile',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getIfcFiles',
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -65,7 +72,8 @@ export class IfcDiff implements INodeType {
 						operation: ['compareIfcFiles'],
 					},
 				},
-				description: 'The name of the new IFC file',
+				description: 'Select the new IFC file from available files. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				placeholder: 'Select an IFC file...',
 			},
 			{
 				displayName: 'Output File',
@@ -78,6 +86,7 @@ export class IfcDiff implements INodeType {
 					},
 				},
 				description: 'The name of the output file',
+				placeholder: '/output/diff/comparison_report.json',
 			},
 			{
 				displayName: 'Relationships',
@@ -151,10 +160,20 @@ export class IfcDiff implements INodeType {
 						operation: ['compareIfcFiles'],
 					},
 				},
-				placeholder: 'e.g., IfcWall',
+				placeholder: 'IfcWall',
 				description: 'Optional IFC query to filter elements for comparison (e.g., IfcWall)',
+				hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			// Get all available IFC files
+			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return await getFiles.call(this, ['.ifc']);
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
