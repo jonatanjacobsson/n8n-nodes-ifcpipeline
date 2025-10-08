@@ -229,10 +229,28 @@ export class IfcPatch implements INodeType {
 						const badge = recipe.is_custom ? ' [Custom]' : '';
 						const paramCount = recipe.parameters?.length || 0;
 						const paramInfo = paramCount > 0 ? ` (${paramCount} param${paramCount > 1 ? 's' : ''})` : '';
+
+						// Build description with parameter list
+						let description = recipe.description || `Execute the ${recipe.name} recipe`;
+
+						// Append parameter information if available (using HTML for better formatting)
+						if (recipe.parameters && recipe.parameters.length > 0) {
+							description += '<br><br><b>Parameters:</b>';
+							recipe.parameters.forEach((param: RecipeParameter) => {
+								const required = param.required ? ' <i>(required)</i>' : '';
+								const defaultValue = param.default !== undefined ? ` <code>[default: ${param.default}]</code>` : '';
+								const paramType = param.type ? ` <code>{${param.type}}</code>` : '';
+								description += `<br>• <b>${param.name}</b>${paramType}${required}${defaultValue}`;
+								if (param.description) {
+									description += `<br>&nbsp;&nbsp;${param.description}`;
+								}
+							});
+						}
+
 						return {
 							name: `${recipe.name}${badge}${paramInfo}`,
 							value: recipe.name,
-							description: recipe.description || `Execute the ${recipe.name} recipe`,
+							description: description,
 						};
 					});
 
