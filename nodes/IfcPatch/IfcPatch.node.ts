@@ -61,29 +61,19 @@ export class IfcPatch implements INodeType {
 				description: 'The path or name of the output IFC file',
 				placeholder: '/output/ifc/Building-Architecture_patched.ifc',
 			},
-			{
-				displayName: 'Recipe Name or ID',
-				name: 'recipeName',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getRecipes',
-				},
-				default: '',
-				required: true,
-				description: 'Select the IfcPatch recipe to execute. Recipes marked with [Custom] are user-defined scripts. The recipe description is shown in the dropdown. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
-				placeholder: 'Select a recipe...',
+		{
+			displayName: 'Recipe Name or ID',
+			name: 'recipeName',
+			type: 'options',
+			typeOptions: {
+				loadOptionsMethod: 'getRecipes',
 			},
-			{
-				displayName: 'Recipe Information',
-				name: 'recipeInfo',
-				type: 'notice',
-				default: 'ℹ️ Select a recipe above to see its required parameters below.',
-				displayOptions: {
-					show: {
-						recipeName: [''],
-					},
-				},
-			},
+			default: '',
+			required: true,
+			description: 'Select the IfcPatch recipe to execute. Recipes marked with [Custom] are user-defined scripts. The recipe description is shown in the dropdown. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			placeholder: 'Select a recipe...',
+			hint: 'View recipe documentation at <a href="https://docs.ifcopenshell.org/autoapi/ifcpatch/recipes/index.html" target="_blank">IfcPatch Recipes</a>',
+		},
 			// Common recipe: ExtractElements parameters
 			{
 				displayName: 'Query',
@@ -97,6 +87,7 @@ export class IfcPatch implements INodeType {
 				default: 'IfcWall',
 				description: 'A query to select the subset of IFC elements',
 				placeholder: 'IfcWall',
+				hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 			},
 			{
 				displayName: 'Assume Asset Uniqueness By Name',
