@@ -1,7 +1,7 @@
 import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
-import { ifcPipelineApiRequest, getFiles } from '../shared/GenericFunctions';
+import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
 export class IfcDiff implements INodeType {
 	description: INodeTypeDescription = {
@@ -164,6 +164,44 @@ export class IfcDiff implements INodeType {
 				description: 'Optional IFC query to filter elements for comparison (e.g., IfcWall)',
 				hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 			},
+			{
+				displayName: 'Wait for Completion',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						operation: ['compareIfcFiles'],
+					},
+				},
+				description: 'Whether to wait for the job to complete before continuing',
+			},
+			{
+				displayName: 'Polling Interval (Seconds)',
+				name: 'pollingInterval',
+				type: 'number',
+				default: 2,
+				displayOptions: {
+					show: {
+						operation: ['compareIfcFiles'],
+						waitForCompletion: [true],
+					},
+				},
+				description: 'How often to check the job status (in seconds)',
+			},
+			{
+				displayName: 'Timeout (Seconds)',
+				name: 'timeout',
+				type: 'number',
+				default: 300,
+				displayOptions: {
+					show: {
+						operation: ['compareIfcFiles'],
+						waitForCompletion: [true],
+					},
+				},
+				description: 'Maximum time to wait for job completion (in seconds)',
+			},
 		],
 	};
 
@@ -193,6 +231,9 @@ export class IfcDiff implements INodeType {
 					const relationships = (this.getNodeParameter('relationshipsUi', i, []) as { relationships: string[] }).relationships ?? [];
 					const isShallow = this.getNodeParameter('isShallow', i, true) as boolean;
 					const filterElements = this.getNodeParameter('filterElements', i, '') as string;
+					const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
+					const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
+					const timeout = this.getNodeParameter('timeout', i, 300) as number;
 
 					const body: any = {
 						old_file: oldFile,
@@ -216,6 +257,13 @@ export class IfcDiff implements INodeType {
 						'/ifcdiff',
 						body,
 					);
+
+					const jobId = responseData.job_id;
+
+					// If waitForCompletion is true, poll for job status
+					if (waitForCompletion && jobId) {
+						responseData = await pollForJobCompletion(this, jobId, pollingInterval, timeout);
+					}
 
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray(responseData as any),
