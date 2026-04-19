@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-ifcpipeline",
-  "version": "0.6.0",
-  "description": "n8n nodes for IFC Pipeline integration",
+  "version": "0.7.0",
+  "description": "n8n nodes for the object-storage (S3/MinIO) variant of IFC Pipeline. Requires USE_OBJECT_STORAGE=true on the target deployment; legacy filesystem deployments are no longer supported.",
   "keywords": [
     "n8n-community-node-package",
     "ifc",
@@ -35,7 +35,8 @@
     "prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes credentials package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
@@ -51,7 +52,8 @@
       "dist/nodes/IfcTester/IfcTester.node.js",
       "dist/nodes/IfcDiff/IfcDiff.node.js",
       "dist/nodes/IfcQuantityTakeoff/IfcQuantityTakeoff.node.js",
-      "dist/nodes/IfcPatch/IfcPatch.node.js"
+      "dist/nodes/IfcPatch/IfcPatch.node.js",
+      "dist/nodes/Ifc2Peppol/Ifc2Peppol.node.js"
     ]
   },
   "devDependencies": {
@@ -59,7 +61,7 @@
     "@types/request": "^2.48.12",
     "@typescript-eslint/parser": "^7.15.0",
     "eslint": "^8.56.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.1",
+    "eslint-plugin-n8n-nodes-base": "1.16.3",
     "gulp": "^4.0.2",
     "n8n-workflow": "^1.82.0",
     "prettier": "^3.3.2",
@@ -67,5 +69,37 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
+  },
+  "pnpm": {
+    "overrides": {
+      "form-data": ">=4.0.4",
+      "axios": ">=1.15.0",
+      "braces": ">=3.0.3",
+      "lodash": ">=4.18.0",
+      "js-yaml": ">=4.1.1",
+      "follow-redirects": ">=1.16.0",
+      "micromatch": ">=4.0.8",
+      "picomatch": ">=2.3.2",
+      "minimatch@3": ">=3.1.4",
+      "minimatch@9": ">=9.0.7",
+      "brace-expansion@1": ">=1.1.13",
+      "brace-expansion@2": ">=2.0.3",
+      "flatted": ">=3.4.2"
+    }
+  },
+  "overrides": {
+    "form-data": ">=4.0.4",
+    "axios": ">=1.15.0",
+    "braces": ">=3.0.3",
+    "lodash": ">=4.18.0",
+    "js-yaml": ">=4.1.1",
+    "follow-redirects": ">=1.16.0",
+    "micromatch": ">=4.0.8",
+    "picomatch": ">=2.3.2",
+    "minimatch@3": ">=3.1.4",
+    "minimatch@9": ">=9.0.7",
+    "brace-expansion@1": ">=1.1.13",
+    "brace-expansion@2": ">=2.0.3",
+    "flatted": ">=3.4.2"
   }
 }

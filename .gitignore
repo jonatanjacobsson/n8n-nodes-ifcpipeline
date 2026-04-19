@@ -9,3 +9,7 @@ yarn.lock
 .pnpm-store/
 .cursor/
 .repomix/
+
+# Stray local scratch docs — not part of the package or its history
+INTERAXO-API-SUMMARY.md
+SECURITY-FIXES.md

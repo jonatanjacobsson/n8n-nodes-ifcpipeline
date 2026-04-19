@@ -76,7 +76,7 @@ export class IfcToJson implements INodeType {
 					},
 				},
 				description: 'The name of the output JSON file',
-				placeholder: '/output/json/Building-Architecture.json',
+				placeholder: 'output/json/Building-Architecture.json',
 			},
 
 			// Get JSON

@@ -12,7 +12,14 @@ import {
 } from 'n8n-workflow';
 
 /**
- * Make an API request to IFC Pipeline
+ * Make an API request to IFC Pipeline.
+ *
+ * These nodes target the object-storage variant of ifcpipeline exclusively
+ * (USE_OBJECT_STORAGE=true). All file references are S3 object keys under
+ * the configured bucket — `uploads/<name>` for inputs, `output/<subdir>/<name>`
+ * for outputs. The gateway's `normalize_input_key` / `normalize_output_key`
+ * tolerate a leading slash and `s3://bucket/...` URIs, so previous job
+ * outputs can be chained straight into the next node without rewriting.
  */
 export async function ifcPipelineApiRequest(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
@@ -50,7 +57,10 @@ export async function ifcPipelineApiRequest(
 }
 
 /**
- * Make an API request to download a file
+ * Download a file from the API. `/download/{token}` on the object-storage
+ * gateway responds with a 307 redirect to a short-lived presigned MinIO/S3
+ * URL, so we follow redirects transparently. `removeRefererHeader` and n8n's
+ * cross-origin auth rules prevent `X-API-Key` from leaking to the S3 host.
  */
 export async function ifcPipelineApiRequestDownload(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
@@ -71,7 +81,10 @@ export async function ifcPipelineApiRequestDownload(
 		uri: uri || `${baseUrl}${endpoint}`,
 		json: true,
 		encoding: null,
-	};
+		followRedirect: true,
+		followAllRedirects: true,
+		removeRefererHeader: true,
+	} as IRequestOptions;
 
 	if (!Object.keys(body).length) {
 		delete options.body;
@@ -92,7 +105,9 @@ export async function ifcPipelineApiRequestDownload(
 }
 
 /**
- * Make an API request to upload a file
+ * Upload a file via the API gateway. The gateway streams the body straight
+ * into the S3 bucket (no local disk roundtrip) and returns
+ * `{ storage: "s3", bucket, object_key, object_url, file_path }`.
  */
 export async function ifcPipelineApiRequestUpload(
 	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
@@ -130,17 +145,50 @@ export async function ifcPipelineApiRequestUpload(
 }
 
 /**
- * Helper function to format an IFC file name with required path if needed
+ * Normalize a user-supplied reference into an S3 object key.
+ *
+ * Accepts, in order:
+ * - `s3://bucket/key`         → `key`
+ * - `/uploads/foo.ifc`        → `uploads/foo.ifc`
+ * - `uploads/foo.ifc`         → `uploads/foo.ifc` (unchanged)
+ * - `foo.ifc`                 → `uploads/foo.ifc` (bare name lives under uploads/)
+ *
+ * Bare filenames are the common case when chaining from an earlier step.
+ * Anything containing a separator is trusted and only has its leading slash
+ * stripped — this mirrors the gateway's `normalize_input_key`.
  */
-export function formatFileName(fileName: string): string {
-	if (fileName.startsWith('/') || fileName.includes('://')) {
-		return fileName;
+export function normalizeObjectKey(reference: string): string {
+	if (!reference) return reference;
+	if (reference.startsWith('s3://')) {
+		const withoutScheme = reference.slice('s3://'.length);
+		const firstSlash = withoutScheme.indexOf('/');
+		return firstSlash === -1 ? withoutScheme : withoutScheme.slice(firstSlash + 1);
 	}
-	return `/app/uploads/${fileName}`;
+	const trimmed = reference.replace(/^\/+/, '');
+	if (trimmed.includes('/')) return trimmed;
+	return `uploads/${trimmed}`;
 }
 
 /**
- * Helper to handle file binary data
+ * Given an upload / job response, pick the canonical reference a downstream
+ * worker can consume. Prefers `object_key` (the raw S3 key), then a
+ * normalized form of any `file_path` or `filename` the gateway emits.
+ */
+export function resolveStorageRef(response: IDataObject | undefined): string | undefined {
+	if (!response) return undefined;
+	const objectKey = response.object_key as string | undefined;
+	if (objectKey) return objectKey;
+	const objectUrl = response.object_url as string | undefined;
+	if (objectUrl) return normalizeObjectKey(objectUrl);
+	const filePath = response.file_path as string | undefined;
+	if (filePath) return normalizeObjectKey(filePath);
+	const filename = response.filename as string | undefined;
+	if (filename) return normalizeObjectKey(filename);
+	return undefined;
+}
+
+/**
+ * Helper to attach binary data to items for download operations.
  */
 export function handleBinaryData(
 	items: INodeExecutionData[],
@@ -175,7 +223,7 @@ export function handleBinaryData(
 }
 
 /**
- * Poll for job completion
+ * Poll for job completion.
  */
 export async function pollForJobCompletion(
 	context: IExecuteFunctions,
@@ -188,7 +236,6 @@ export async function pollForJobCompletion(
 	let jobStatus: any;
 
 	while (!jobCompleted) {
-		// Check if timeout exceeded
 		if ((Date.now() - startTime) / 1000 > timeout) {
 			throw new NodeOperationError(
 				context.getNode(),
@@ -196,10 +243,8 @@ export async function pollForJobCompletion(
 			);
 		}
 
-		// Wait for polling interval
 		await new Promise((resolve) => setTimeout(resolve, pollingInterval * 1000));
 
-		// Check job status
 		jobStatus = await ifcPipelineApiRequest.call(
 			context,
 			'GET',
@@ -215,57 +260,60 @@ export async function pollForJobCompletion(
 				`Job failed: ${jobStatus.error || 'Unknown error'}`,
 			);
 		}
-		// If status is 'queued' or 'started', continue polling
 	}
 
 	return jobStatus;
 }
 
 /**
- * Get available files from the API - used for file picker dropdowns
- * Can optionally filter by file extension
+ * Populate file-picker dropdowns from `/list_directories`. On object-storage
+ * deployments the endpoint enumerates the bucket; an empty response means
+ * the bucket is empty or the gateway is too old to list S3 objects — in
+ * both cases we show a hint instead of a misleading error.
  */
 export async function getFiles(
 	this: ILoadOptionsFunctions,
 	extensions?: string[],
 ): Promise<INodePropertyOptions[]> {
 	try {
-		// Fetch files from the API
 		const responseData = await ifcPipelineApiRequest.call(
 			this,
 			'GET',
 			'/list_directories',
 		);
 
-		let files = responseData.files as string[];
+		let files = (responseData.files as string[]) || [];
 
-		// Filter by extensions if provided
 		if (extensions && extensions.length > 0) {
 			files = files.filter((file: string) => {
 				return extensions.some(ext => file.toLowerCase().endsWith(ext.toLowerCase()));
 			});
 		}
 
-		// Transform files into dropdown options
-		const options: INodePropertyOptions[] = files.map((file: string) => {
-			// Extract just the filename for display
-			const filename = file.split('/').pop() || file;
-			// Determine the directory for the description
-			const dir = file.substring(0, file.lastIndexOf('/')) || '/';
+		if (files.length === 0) {
+			return [
+				{
+					name: 'No files found in object storage',
+					value: '',
+					description: 'Upload a file first, or type the object key (e.g. uploads/model.ifc) in this field using an expression',
+				},
+			];
+		}
 
+		const options: INodePropertyOptions[] = files.map((file: string) => {
+			const filename = file.split('/').pop() || file;
+			const dir = file.substring(0, file.lastIndexOf('/')) || '/';
 			return {
-				name: file, // Show full path
+				name: file,
 				value: file,
 				description: `${filename} (in ${dir})`,
 			};
 		});
 
-		// Sort options alphabetically by name
 		options.sort((a, b) => a.name.localeCompare(b.name));
 
 		return options;
 	} catch (error) {
-		// Return empty array on error with a helpful message
 		return [
 			{
 				name: 'Error loading files',

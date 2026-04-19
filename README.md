@@ -72,22 +72,46 @@ This package includes the following nodes:
 
 ## Credentials
 
-This node requires access to an IFcPipeline API. You'll need to provide:
+This node requires access to an IfcPipeline API gateway running with
+`USE_OBJECT_STORAGE=true` (the S3/MinIO-backed variant of ifcpipeline —
+there is no filesystem fallback from 0.7.0 onwards). The credential exposes:
 
-- **API Key**: Your authorization key for the IFcPipeline API
-- **API URL**: The base URL for your IFcPipeline API instance
+- **Base URL**: The base URL for your IfcPipeline API gateway (e.g. `http://api-gateway` inside Docker, or `https://ifcpipeline.example.com`).
+- **API Key**: Your `IFC_PIPELINE_API_KEY`.
+
+The credential `Test` hits `/health` so mis-pointed deployments (e.g. a
+legacy filesystem-only gateway) are flagged early.
 
 ## Usage
 
-After installation, the IFcPipeline nodes will be available in the nodes panel under "IFcPipeline". You can search for "IFC" to find all related nodes.
+After installation, the IfcPipeline nodes will be available in the nodes panel under "IfcPipeline". You can search for "IFC" to find all related nodes.
+
+### Object-storage model
+
+All file references are S3 object keys under the configured bucket.
+Legacy leading slashes and `s3://bucket/...` URIs are tolerated by the
+gateway, but the canonical form is a bare key:
+
+| Purpose                  | Example key                                     |
+|--------------------------|-------------------------------------------------|
+| Uploaded inputs          | `uploads/Building-Architecture.ifc`            |
+| `ifccsv` export          | `output/csv/Building-Architecture_export.csv`  |
+| `ifccsv` import (updated IFC) | `output/ifc_updated/Building-Architecture_updated.ifc` |
+| `ifctester` report       | `output/ids/validation_report.html`            |
+| `ifcdiff` report         | `output/diff/comparison_report.json`           |
+| `ifcclash` report        | `output/clash/report.json`                     |
+| `ifc2json` output        | `output/json/Building-Architecture.json`       |
+| `ifcconvert` output      | `output/converted/Building-Architecture.glb`   |
+| `ifcpatch` output        | `output/patch/Building-Architecture_patched.ifc`|
+| `ifc5d` (QTO) output     | `output/qto/Building-Architecture_with_qtos.ifc`|
 
 ### Typical workflow steps:
 
-1. Upload an IFC file using the **IfcPipeline** node or download using native n8n nodes.
-2. Process the file using specialized nodes (Conversion, Clash Detection, etc.)
-3. Serve or download the processed results or extract data for further use in your workflows.
+1. **Upload**: the **IfcPipeline → Upload File** operation streams the file straight into MinIO and returns `{ storage: "s3", bucket, object_key, object_url, file_path, storage_ref }`. `storage_ref` is the canonical, bucket-relative key downstream worker nodes should consume.
+2. **Process**: wire `storage_ref` (or any upstream worker's `result.output_key`) into the next node's `filename` / `input_file` / `input_filename` parameter. No prefixes, no mount paths.
+3. **Inspect / download**: worker jobs return `{ output_key, output_path: "s3://…/…" }`. **IfcPipeline → Download File** produces a token via `/create_download_link` and follows the resulting 307 redirect to a presigned MinIO URL transparently.
 
-Each node includes specific options relevant to its function. For example, the IfcClash node allows you to set tolerance levels and detection modes.
+The path-picker dropdown in each node queries `/list_directories`, which the object-storage gateway backs with a paginated `list_objects_v2` over the bucket — so both fresh uploads and worker outputs show up automatically.
 
 ## Resources
 

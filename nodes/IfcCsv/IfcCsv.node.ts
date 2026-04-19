@@ -76,7 +76,7 @@ export class IfcCsv implements INodeType {
 					},
 				},
 				description: 'The name of the output CSV file',
-				placeholder: '/output/csv/Building-Architecture_export.csv',
+				placeholder: 'output/csv/Building-Architecture_export.csv',
 			},
 			{
 				displayName: 'Options',
@@ -185,7 +185,7 @@ export class IfcCsv implements INodeType {
 					},
 				},
 				description: 'The name of the output IFC file. If left empty, the original file will be overwritten.',
-				placeholder: '/output/ifc/Building-Architecture_updated.ifc',
+				placeholder: 'output/ifc_updated/Building-Architecture_updated.ifc',
 			},
 			{
 				displayName: 'Wait for Completion',

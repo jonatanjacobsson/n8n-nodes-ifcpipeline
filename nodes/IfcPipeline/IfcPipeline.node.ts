@@ -1,6 +1,6 @@
 import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription, NodeConnectionType, INodePropertyOptions } from 'n8n-workflow';
-import { handleBinaryData, ifcPipelineApiRequest, ifcPipelineApiRequestDownload, ifcPipelineApiRequestUpload, getFiles } from '../shared/GenericFunctions';
+import { handleBinaryData, ifcPipelineApiRequest, ifcPipelineApiRequestDownload, ifcPipelineApiRequestUpload, getFiles, resolveStorageRef } from '../shared/GenericFunctions';
 import { NodeOperationError } from 'n8n-workflow';
 
 export class IfcPipeline implements INodeType {
@@ -320,6 +320,14 @@ export class IfcPipeline implements INodeType {
 						`/upload/${fileType}`,
 						formData,
 					);
+
+					// Expose a canonical `storage_ref` (normalised S3 object
+					// key) so downstream worker nodes can feed it straight
+					// into `filename` / `input_file` without any massaging.
+					const storageRef = resolveStorageRef(responseData as any);
+					if (storageRef !== undefined && responseData && (responseData as any).storage_ref === undefined) {
+						(responseData as any).storage_ref = storageRef;
+					}
 
 					const executionData = this.helpers.constructExecutionMetaData(
 						this.helpers.returnJsonArray(responseData as any),

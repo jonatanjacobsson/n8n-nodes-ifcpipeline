@@ -46,6 +46,11 @@ module.exports = {
 				'n8n-nodes-base/node-execute-block-missing-continue-on-fail': 'off',
 				'n8n-nodes-base/node-resource-description-filename-against-convention': 'off',
 				'n8n-nodes-base/node-param-fixed-collection-type-unsorted-items': 'off',
+				// Collections inside IfcConvert/IfcPatch mirror the upstream CLI flag
+				// groupings (logging, includes/excludes, geometry/opening opts, etc.)
+				// rather than alphabetical order, so that users reading the IfcConvert
+				// docs find fields in the expected place.
+				'n8n-nodes-base/node-param-collection-type-unsorted-items': 'off',
 			},
 		},
 	],

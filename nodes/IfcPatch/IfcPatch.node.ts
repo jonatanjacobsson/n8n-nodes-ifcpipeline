@@ -59,7 +59,7 @@ export class IfcPatch implements INodeType {
 				default: '',
 				required: true,
 				description: 'The path or name of the output IFC file',
-				placeholder: '/output/ifc/Building-Architecture_patched.ifc',
+				placeholder: 'output/patch/Building-Architecture_patched.ifc',
 			},
 		{
 			displayName: 'Recipe Name or ID',
@@ -74,33 +74,21 @@ export class IfcPatch implements INodeType {
 			placeholder: 'Select a recipe...',
 			hint: 'View recipe documentation at <a href="https://docs.ifcopenshell.org/autoapi/ifcpatch/recipes/index.html" target="_blank">IfcPatch Recipes</a>',
 		},
-			// Common recipe: ExtractElements parameters
-			{
-				displayName: 'Query',
-				name: 'param_query',
-				type: 'string',
-				displayOptions: {
-					show: {
-						recipeName: ['ExtractElements'],
-					},
+		// Common recipe: ExtractElements parameters
+		{
+			displayName: 'Query',
+			name: 'param_query',
+			type: 'string',
+			displayOptions: {
+				show: {
+					recipeName: ['ExtractElements'],
 				},
-				default: 'IfcWall',
-				description: 'A query to select the subset of IFC elements',
-				placeholder: 'IfcWall',
-				hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
 			},
-			{
-				displayName: 'Assume Asset Uniqueness By Name',
-				name: 'param_assume_asset_uniqueness_by_name',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						recipeName: ['ExtractElements'],
-					},
-				},
-				default: true,
-				description: 'Whether to avoid adding assets (profiles, materials, styles) with the same name multiple times. Assumes different project assets use different names.',
-			},
+			default: 'IfcWall',
+			description: 'A query to select the subset of IFC elements',
+			placeholder: 'IfcWall',
+			hint: 'Use IfcOpenShell <a href="https://docs.ifcopenshell.org/ifcopenshell-python/selector_syntax.html#filtering-elements" target="_blank">selector syntax</a> to filter elements (e.g., IfcWall, IfcBeam, .Pset_WallCommon.LoadBearing=TRUE)',
+		},
 			// Common recipe: ConvertLengthUnit parameters
 			{
 				displayName: 'Target Unit',
@@ -298,13 +286,11 @@ export class IfcPatch implements INodeType {
 				// Build arguments based on recipe type
 				const args: any[] = [];
 
-				// Check if recipe has explicit parameters defined
-				if (recipeName === 'ExtractElements') {
-					// ExtractElements parameters: query, assume_asset_uniqueness_by_name
-					const query = this.getNodeParameter('param_query', i, 'IfcWall') as string;
-					const assumeUniqueness = this.getNodeParameter('param_assume_asset_uniqueness_by_name', i, true) as boolean;
-					args.push(query);
-					args.push(assumeUniqueness);
+			// Check if recipe has explicit parameters defined
+			if (recipeName === 'ExtractElements') {
+				// ExtractElements parameters: query
+				const query = this.getNodeParameter('param_query', i, 'IfcWall') as string;
+				args.push(query);
 				} else if (recipeName === 'ConvertLengthUnit') {
 					// ConvertLengthUnit parameters: unit
 					const unit = this.getNodeParameter('param_unit', i, 'METRE') as string;
