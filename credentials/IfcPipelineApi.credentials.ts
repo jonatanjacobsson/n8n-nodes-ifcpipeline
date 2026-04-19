@@ -5,6 +5,13 @@ import {
 	INodeProperties,
 } from 'n8n-workflow';
 
+/**
+ * IFC Pipeline API credential.
+ *
+ * Starting with 0.7.0 these nodes target the object-storage (S3/MinIO)
+ * variant of ifcpipeline exclusively. The target deployment must have
+ * `USE_OBJECT_STORAGE=true` — there is no filesystem fallback.
+ */
 export class IfcPipelineApi implements ICredentialType {
 	name = 'ifcPipelineApi';
 	displayName = 'IFC Pipeline API';
@@ -16,7 +23,7 @@ export class IfcPipelineApi implements ICredentialType {
 			type: 'string',
 			default: 'http://api-gateway',
 			placeholder: 'http://api-gateway',
-			description: 'The base URL of your IFC Pipeline API instance',
+			description: 'The base URL of your IFC Pipeline API gateway. The target deployment must run with USE_OBJECT_STORAGE=true.',
 		},
 		{
 			displayName: 'API Key',
@@ -46,4 +53,4 @@ export class IfcPipelineApi implements ICredentialType {
 			method: 'GET',
 		},
 	};
-} 
+}

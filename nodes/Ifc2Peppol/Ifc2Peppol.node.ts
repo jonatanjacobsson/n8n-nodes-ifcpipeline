@@ -3,17 +3,17 @@ import { NodeConnectionType } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
 import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
 
-export class IfcQuantityTakeoff implements INodeType {
+export class Ifc2Peppol implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'IFC Quantity Takeoff',
-		name: 'ifcQuantityTakeoff',
-		icon: 'file:ifcopenshell.svg',
+		displayName: 'IFC to Peppol',
+		name: 'ifc2Peppol',
+		icon: 'file:ifc2peppol.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Calculate quantities from IFC models',
+		description: 'Convert IFC files to Peppol BIS Catalogue XML format. Generates Peppol Catalogue XML from IFC models with BIP property sets. Note: This node requires credentials pointing to the ifc2peppol API service (separate from ifcpipeline).',
 		defaults: {
-			name: 'IFC Quantity Takeoff',
+			name: 'IFC to Peppol',
 		},
 		inputs: ['main'] as NodeConnectionType[],
 		outputs: ['main'] as NodeConnectionType[],
@@ -31,19 +31,19 @@ export class IfcQuantityTakeoff implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Calculate Quantities',
-						value: 'calculateQuantities',
-						description: 'Calculate quantities from IFC model',
-						action: 'Calculate quantities from IFC model',
+						name: 'Convert to Peppol',
+						value: 'convertToPeppol',
+						description: 'Convert IFC file to Peppol Catalogue XML format',
+						action: 'Convert ifc file to peppol catalogue xml format',
 					},
 				],
-				default: 'calculateQuantities',
+				default: 'convertToPeppol',
 			},
 
-			// Calculate Quantities
+			// Convert to Peppol
 			{
-				displayName: 'Input File Name or ID',
-				name: 'inputFile',
+				displayName: 'IFC Filename Name or ID',
+				name: 'filename',
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getIfcFiles',
@@ -52,24 +52,25 @@ export class IfcQuantityTakeoff implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						operation: ['calculateQuantities'],
+						operation: ['convertToPeppol'],
 					},
 				},
-				description: 'Select the input IFC file. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description: 'Select the IFC file to convert. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				placeholder: 'Select an IFC file...',
 			},
 			{
-				displayName: 'Output File',
-				name: 'outputFile',
+				displayName: 'Output Filename',
+				name: 'outputFilename',
 				type: 'string',
 				default: '',
+				required: true,
 				displayOptions: {
 					show: {
-						operation: ['calculateQuantities'],
+						operation: ['convertToPeppol'],
 					},
 				},
-				description: 'The name of the output IFC file. If left empty, the calculation results will be returned without modifying the original file.',
-				placeholder: 'output/qto/Building-Architecture_with_qtos.ifc',
+				description: 'The name of the output Peppol Catalogue XML file',
+				placeholder: 'output/peppol/catalogue.xml',
 			},
 			{
 				displayName: 'Wait for Completion',
@@ -78,7 +79,7 @@ export class IfcQuantityTakeoff implements INodeType {
 				default: true,
 				displayOptions: {
 					show: {
-						operation: ['calculateQuantities'],
+						operation: ['convertToPeppol'],
 					},
 				},
 				description: 'Whether to wait for the job to complete before continuing',
@@ -90,7 +91,7 @@ export class IfcQuantityTakeoff implements INodeType {
 				default: 2,
 				displayOptions: {
 					show: {
-						operation: ['calculateQuantities'],
+						operation: ['convertToPeppol'],
 						waitForCompletion: [true],
 					},
 				},
@@ -103,7 +104,7 @@ export class IfcQuantityTakeoff implements INodeType {
 				default: 300,
 				displayOptions: {
 					show: {
-						operation: ['calculateQuantities'],
+						operation: ['convertToPeppol'],
 						waitForCompletion: [true],
 					},
 				},
@@ -130,28 +131,24 @@ export class IfcQuantityTakeoff implements INodeType {
 
 		for (let i = 0; i < items.length; i++) {
 			try {
-				if (operation === 'calculateQuantities') {
-					// Calculate Quantities
-					const inputFile = this.getNodeParameter('inputFile', i) as string;
-					const outputFile = this.getNodeParameter('outputFile', i) as string;
+				if (operation === 'convertToPeppol') {
+					// Convert to Peppol
+					const filename = this.getNodeParameter('filename', i) as string;
+					const outputFilename = this.getNodeParameter('outputFilename', i) as string;
 					const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 					const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
 					const timeout = this.getNodeParameter('timeout', i, 300) as number;
 
-					const body: any = {
-						input_file: inputFile,
+					const body = {
+						input_file: filename,
+						output_file: outputFilename,
 					};
-
-					// Add output file if provided
-					if (outputFile) {
-						body.output_file = outputFile;
-					}
 
 					// Submit the job
 					responseData = await ifcPipelineApiRequest.call(
 						this,
 						'POST',
-						'/calculate-qtos',
+						'/ifc2peppol',
 						body,
 					);
 
@@ -185,3 +182,4 @@ export class IfcQuantityTakeoff implements INodeType {
 		return [returnData];
 	}
 }
+

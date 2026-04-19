@@ -86,7 +86,7 @@ export class IfcDiff implements INodeType {
 					},
 				},
 				description: 'The name of the output file',
-				placeholder: '/output/diff/comparison_report.json',
+				placeholder: 'output/diff/comparison_report.json',
 			},
 			{
 				displayName: 'Relationships',
@@ -122,7 +122,7 @@ export class IfcDiff implements INodeType {
 					{
 						name: 'Geometry',
 						value: 'geometry',
-						description: 'Check for differences in geometry (default)',
+						description: 'Check for differences in geometry (can be slow for large models)',
 					},
 					{
 						name: 'Property Sets',
@@ -136,7 +136,7 @@ export class IfcDiff implements INodeType {
 					},
 				],
 				default: ['geometry'], // Default to only checking geometry
-				description: 'Select which relationships to compare. If none selected, defaults to geometry.',
+				description: 'Select which relationships to compare. Only the selected types will be checked. For faster comparisons, exclude geometry.',
 			},
 			{
 				displayName: 'Is Shallow',
@@ -228,28 +228,26 @@ export class IfcDiff implements INodeType {
 					const oldFile = this.getNodeParameter('oldFile', i) as string;
 					const newFile = this.getNodeParameter('newFile', i) as string;
 					const outputFile = this.getNodeParameter('outputFile', i) as string;
-					const relationships = (this.getNodeParameter('relationshipsUi', i, []) as { relationships: string[] }).relationships ?? [];
+					const relationships = this.getNodeParameter('relationshipsUi', i, []) as string[];
 					const isShallow = this.getNodeParameter('isShallow', i, true) as boolean;
 					const filterElements = this.getNodeParameter('filterElements', i, '') as string;
 					const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 					const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
 					const timeout = this.getNodeParameter('timeout', i, 300) as number;
 
-					const body: any = {
-						old_file: oldFile,
-						new_file: newFile,
-						output_file: outputFile,
-						is_shallow: isShallow,
-					};
+				const body: any = {
+					old_file: oldFile,
+					new_file: newFile,
+					output_file: outputFile,
+					is_shallow: isShallow,
+					// Always send relationships array to prevent default behavior of checking everything
+					relationships: relationships.length > 0 ? relationships : ['geometry'],
+				};
 
-					// Only include relationships if it's not empty and not just ['geometry'] (which is the default handled by the backend if null)
-					if (relationships.length > 0 && !(relationships.length === 1 && relationships[0] === 'geometry')) {
-						body.relationships = relationships;
-					}
-					// Only include filter_elements if it's not an empty string
-					if (filterElements) {
-						body.filter_elements = filterElements;
-					}
+				// Only include filter_elements if it's not an empty string
+				if (filterElements) {
+					body.filter_elements = filterElements;
+				}
 
 					responseData = await ifcPipelineApiRequest.call(
 						this,

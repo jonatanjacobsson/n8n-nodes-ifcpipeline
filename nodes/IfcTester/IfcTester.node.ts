@@ -87,7 +87,7 @@ export class IfcTester implements INodeType {
 					},
 				},
 				description: 'The name of the output report file',
-				placeholder: '/output/reports/validation_report.html',
+				placeholder: 'output/IDs/validation_report.html',
 			},
 			{
 				displayName: 'Report Type',
