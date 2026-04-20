@@ -5,6 +5,26 @@ All notable changes to `n8n-nodes-ifcpipeline` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-04-20
+
+### Added
+
+- Self-tuning client-side rate limiter in `nodes/shared/GenericFunctions.ts`.
+  One adaptive token bucket per gateway `baseUrl` is shared by every IFC\*
+  node, every workflow and every concurrent execution inside a given n8n
+  process, so workflows queuing many jobs cannot collectively exceed the
+  gateway's real capacity. No UI, no configuration.
+  - Starts at 80 req/s (well under the measured ~150 req/s end-to-end
+    ceiling observed through Cloudflare), additively increases +1 req/s per
+    second of sustained success, capped at 200 req/s.
+  - Multiplicatively halves the rate (floor 2 req/s) on any `429` or `503`
+    response, honouring a server-provided `Retry-After` header (numeric
+    seconds or HTTP-date, clamped to 30 s).
+  - Retries the request exactly once after pushback so a single transient
+    `429` does not fail a workflow item.
+  - Acquisitions are serialised on a per-bucket promise chain to keep
+    refill/token accounting race-free under concurrent fan-out.
+
 ## [0.7.0] - 2026-04-19
 
 This release aligns the package exclusively with the **object-storage (S3/MinIO)

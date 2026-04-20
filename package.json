@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-ifcpipeline",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "n8n nodes for the object-storage (S3/MinIO) variant of IFC Pipeline. Requires USE_OBJECT_STORAGE=true on the target deployment; legacy filesystem deployments are no longer supported.",
   "keywords": [
     "n8n-community-node-package",
