@@ -53,12 +53,13 @@
       "dist/nodes/IfcDiff/IfcDiff.node.js",
       "dist/nodes/IfcQuantityTakeoff/IfcQuantityTakeoff.node.js",
       "dist/nodes/IfcPatch/IfcPatch.node.js",
-      "dist/nodes/Ifc2Peppol/Ifc2Peppol.node.js"
+      "dist/nodes/Ifc2Peppol/Ifc2Peppol.node.js",
+      "dist/nodes/IfcCoord/IfcCoord.node.js"
     ]
   },
   "devDependencies": {
-    "@types/node": "^22.13.16",
-    "@types/request": "^2.48.12",
+    "@types/node": "^25.9.1",
+    "@types/request": "^2.48.13",
     "@typescript-eslint/parser": "^7.15.0",
     "eslint": "^8.56.0",
     "eslint-plugin-n8n-nodes-base": "1.16.3",

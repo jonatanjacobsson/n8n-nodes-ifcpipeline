@@ -50,7 +50,7 @@ export async function ifcPipelineApiRequest(
 	}
 
 	try {
-		return await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options);
+		return await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options as any);
 	} catch (error) {
 		throw new NodeApiError(this.getNode(), error);
 	}
@@ -95,7 +95,7 @@ export async function ifcPipelineApiRequestDownload(
 	}
 
 	try {
-		const response = await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options);
+		const response = await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options as any);
 		return {
 			data: response,
 		};
@@ -138,7 +138,7 @@ export async function ifcPipelineApiRequestUpload(
 	}
 
 	try {
-		return await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options);
+		return await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options as any);
 	} catch (error) {
 		throw new NodeApiError(this.getNode(), error);
 	}
