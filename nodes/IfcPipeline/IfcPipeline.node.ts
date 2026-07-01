@@ -374,7 +374,8 @@ export class IfcPipeline implements INodeType {
 						mimeType = 'application/json';
 					}
 
-					const newItems = handleBinaryData(
+					const newItems = await handleBinaryData.call(
+						this,
 						[items[i]],
 						binaryPropertyName,
 						fileName,

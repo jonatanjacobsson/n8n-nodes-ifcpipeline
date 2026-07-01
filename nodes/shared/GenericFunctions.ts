@@ -500,37 +500,35 @@ export function applyVersionPins(
 
 /**
  * Helper to attach binary data to items for download operations.
+ *
+ * Routes the payload through n8n's binary-data manager
+ * (`helpers.prepareBinaryData`) instead of stuffing base64 straight into the
+ * item. With `N8N_DEFAULT_BINARY_DATA_MODE=filesystem` this writes the bytes to
+ * disk and keeps only a reference in the execution data — so large IFC files no
+ * longer inflate the in-memory runData (~1.33x as base64) or get serialized with
+ * the execution. Must be called with the executing node's context bound as
+ * `this` so it can reach the binary helpers.
  */
-export function handleBinaryData(
+export async function handleBinaryData(
+	this: IExecuteFunctions,
 	items: INodeExecutionData[],
 	propertyName: string,
 	fileName: string,
 	mimeType: string,
 	data: Buffer,
-): INodeExecutionData[] {
-	const newItems: INodeExecutionData[] = [];
+): Promise<INodeExecutionData[]> {
+	const binaryData = await this.helpers.prepareBinaryData(data, fileName, mimeType);
 
-	for (const item of items) {
-		const newItem = {
-			json: {
-				...item.json,
-				fileName,
-			},
-			binary: {
-				...(item.binary || {}),
-			},
-		};
-
-		newItem.binary![propertyName] = {
-			data: data.toString('base64'),
-			mimeType,
+	return items.map((item) => ({
+		json: {
+			...item.json,
 			fileName,
-		};
-
-		newItems.push(newItem);
-	}
-
-	return newItems;
+		},
+		binary: {
+			...(item.binary || {}),
+			[propertyName]: binaryData,
+		},
+	}));
 }
 
 /**
