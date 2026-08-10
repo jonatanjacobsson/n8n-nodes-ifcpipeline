@@ -546,9 +546,13 @@ export async function pollForJobCompletion(
 
 	while (!jobCompleted) {
 		if ((Date.now() - startTime) / 1000 > timeout) {
+			const progress = jobStatus?.progress;
+			const progressHint = progress
+				? ` Last progress: phase=${progress.phase ?? 'unknown'}, processed=${progress.processed ?? '?'}/${progress.total ?? '?'}, ${progress.percentage ?? '?'}%.`
+				: '';
 			throw new NodeOperationError(
 				context.getNode(),
-				`Job timeout exceeded after ${timeout} seconds`,
+				`Job timeout exceeded after ${timeout} seconds.${progressHint}`,
 			);
 		}
 

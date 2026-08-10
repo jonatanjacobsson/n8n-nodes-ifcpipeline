@@ -5,6 +5,34 @@ All notable changes to `n8n-nodes-ifcpipeline` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-05-26
+
+This release narrows the user-facing surface to **MinIO `version_id` only**.
+The `audit_id` concept (Postgres `object_versions.id`) is still used by the
+ifcpipeline backend for lineage and dedupe — it is simply no longer exposed
+to n8n workflow authors. Lineage continues to work because the gateway
+resolves parents from `(object_key, version_id)`.
+
+### Breaking
+
+- Removed **Input Audit ID** from the `Version Pinning (Optional)` collection
+  in every CUSTOM.* node (IfcPatch, IfcClash, IfcCsv, IfcTester,
+  IfcConversion, IfcToJson, Ifc2Peppol, IfcQuantityTakeoff, and the
+  download/viewer-link operations on IfcPipeline). Saved workflows that
+  configured `inputAuditId` lose that value silently — re-pin with
+  `Input Version ID` or leave empty for auto-pin at the gateway.
+- Node output JSON no longer carries `audit_id`, `input_audit_id`, or
+  `log_audit_id`. Workflow expressions that referenced
+  `{{ $json.audit_id }}` must switch to `{{ $json.version_id }}`.
+
+### Internal
+
+- New `stripAuditFieldsFromResponse` helper in
+  `nodes/shared/GenericFunctions.ts` is applied at the single
+  `sendWithAdaptiveLimit` choke point, so every API/job response is cleaned
+  before reaching n8n — including nested job-status `result` payloads.
+  Binary download responses are skipped (Buffer / `ArrayBuffer` views).
+
 ## [0.7.1] - 2026-04-20
 
 ### Added
