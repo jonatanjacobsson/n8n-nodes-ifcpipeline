@@ -114,7 +114,7 @@ export class TopologicPy implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'TopologicPy',
 		name: 'topologicPy',
-		icon: 'file:topologicpy-logo.png',
+		icon: 'file:topologicpy-logo.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
