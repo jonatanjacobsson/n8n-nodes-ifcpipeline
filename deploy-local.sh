@@ -86,12 +86,22 @@ if [ -d "$TARGET_DIR" ]; then
   echo "  - Removed previous deployment"
 fi
 
-mkdir -p "$TARGET_DIR"
+mkdir -p "$TARGET_DIR/dist"
 
 cp package.json "$TARGET_DIR/"
-cp -r "$SOURCE_DIR/"* "$TARGET_DIR/"
+cp -r "$SOURCE_DIR/"* "$TARGET_DIR/dist/"
 
 echo "✓ Deployment complete."
+echo ""
+
+##############################
+# Step 2b: Sync community package link (n8n loads nodes/node_modules)
+##############################
+COMMUNITY_LINK_DIR="$DOCKER_COMPOSE_DIR/n8n-data/nodes/node_modules/$PACKAGE_NAME"
+mkdir -p "$(dirname "$COMMUNITY_LINK_DIR")"
+rm -rf "$COMMUNITY_LINK_DIR"
+ln -sfn "../../custom/$PACKAGE_NAME" "$COMMUNITY_LINK_DIR"
+echo "✓ Linked community package: nodes/node_modules/$PACKAGE_NAME -> custom/$PACKAGE_NAME"
 echo ""
 
 ##############################

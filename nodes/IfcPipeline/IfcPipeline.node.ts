@@ -350,8 +350,16 @@ export class IfcPipeline implements INodeType {
 						},
 					);
 
-					// Now download the file using the token
-					const token = linkResponse.token;
+					// Now download the file using the token. Current gateways return
+					// `download_token`; keep `token` as a compatibility fallback.
+					const token = linkResponse.download_token ?? linkResponse.token;
+					if (!token) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'Download link response did not include a download token',
+							{ itemIndex: i },
+						);
+					}
 					const { data } = await ifcPipelineApiRequestDownload.call(
 						this,
 						'GET',
@@ -374,7 +382,8 @@ export class IfcPipeline implements INodeType {
 						mimeType = 'application/json';
 					}
 
-					const newItems = handleBinaryData(
+					const newItems = await handleBinaryData.call(
+						this,
 						[items[i]],
 						binaryPropertyName,
 						fileName,

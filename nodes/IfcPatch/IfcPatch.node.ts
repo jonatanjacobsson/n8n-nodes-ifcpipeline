@@ -1,7 +1,17 @@
-import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
+import type { IDataObject, IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeConnectionType } from 'n8n-workflow';
-import { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
-import { ifcPipelineApiRequest, pollForJobCompletion, getFiles } from '../shared/GenericFunctions';
+import type { INodeExecutionData, INodeType, INodeTypeDescription, INodePropertyOptions } from 'n8n-workflow';
+import {
+	applyVersionPins,
+	ifcPipelineApiRequest,
+	getFiles,
+	versionPinningProperty,
+} from '../shared/GenericFunctions';
+import {
+	executeItemsWithJobOrchestration,
+	jobOrchestrationProperties,
+	waitForJob,
+} from '../shared/jobOrchestrationProperties';
 
 // Interface for recipe metadata from API
 interface RecipeParameter {
@@ -184,6 +194,8 @@ export class IfcPatch implements INodeType {
 				},
 				description: 'Maximum time to wait for job completion (in seconds)',
 			},
+			versionPinningProperty,
+			...jobOrchestrationProperties,
 		],
 	};
 
@@ -270,109 +282,64 @@ export class IfcPatch implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		let responseData;
-		const returnData: INodeExecutionData[] = [];
+		return executeItemsWithJobOrchestration(this, items, async (itemIndex) =>
+			runIfcPatch(this, itemIndex),
+		);
+	}
+}
 
-		for (let i = 0; i < items.length; i++) {
-			try {
-				// Get parameters
-				const inputFile = this.getNodeParameter('inputFile', i) as string;
-				const outputFile = this.getNodeParameter('outputFile', i) as string;
-				const recipeName = this.getNodeParameter('recipeName', i) as string;
-				const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
-				const pollingInterval = this.getNodeParameter('pollingInterval', i, 2) as number;
-				const timeout = this.getNodeParameter('timeout', i, 300) as number;
+async function runIfcPatch(ctx: IExecuteFunctions, itemIndex: number): Promise<IDataObject> {
+	const inputFile = ctx.getNodeParameter('inputFile', itemIndex) as string;
+	const outputFile = ctx.getNodeParameter('outputFile', itemIndex) as string;
+	const recipeName = ctx.getNodeParameter('recipeName', itemIndex) as string;
+	const waitForCompletion = ctx.getNodeParameter('waitForCompletion', itemIndex, true) as boolean;
 
-				// Build arguments based on recipe type
-				const args: any[] = [];
-
-			// Check if recipe has explicit parameters defined
-			if (recipeName === 'ExtractElements') {
-				// ExtractElements parameters: query
-				const query = this.getNodeParameter('param_query', i, 'IfcWall') as string;
-				args.push(query);
-				} else if (recipeName === 'ConvertLengthUnit') {
-					// ConvertLengthUnit parameters: unit
-					const unit = this.getNodeParameter('param_unit', i, 'METRE') as string;
-					args.push(unit);
-				} else {
-					// Fallback: parse arguments from fixedCollection
-					const argumentsUi = this.getNodeParameter('argumentsUi', i, {}) as {
-						argumentValues?: Array<{ name?: string; value: string }>;
-					};
-					if (argumentsUi.argumentValues) {
-						for (const arg of argumentsUi.argumentValues) {
-							if (arg.value) {
-								args.push(arg.value);
-							}
-						}
-					}
+	const args: unknown[] = [];
+	if (recipeName === 'ExtractElements') {
+		args.push(ctx.getNodeParameter('param_query', itemIndex, 'IfcWall') as string);
+	} else if (recipeName === 'ConvertLengthUnit') {
+		args.push(ctx.getNodeParameter('param_unit', itemIndex, 'METRE') as string);
+	} else {
+		const argumentsUi = ctx.getNodeParameter('argumentsUi', itemIndex, {}) as {
+			argumentValues?: Array<{ name?: string; value: string }>;
+		};
+		if (argumentsUi.argumentValues) {
+			for (const arg of argumentsUi.argumentValues) {
+				if (arg.value) {
+					args.push(arg.value);
 				}
-
-				// Fetch recipe metadata to determine if it's custom
-				let isCustom = false;
-				try {
-					const recipesData = await ifcPipelineApiRequest.call(
-						this,
-						'POST',
-						'/patch/recipes/list',
-						{
-							include_builtin: true,
-							include_custom: true,
-						},
-					);
-
-					const recipe = recipesData.recipes?.find((r: Recipe) => r.name === recipeName);
-					if (recipe) {
-						isCustom = recipe.is_custom;
-					}
-				} catch (error) {
-					// If we can't fetch recipe metadata, assume it's not custom
-					// This allows the node to work even if the list endpoint is unavailable
-				}
-
-				const body: any = {
-					input_file: inputFile,
-					output_file: outputFile,
-					recipe: recipeName,
-					use_custom: isCustom,
-					arguments: args,
-				};
-
-				// Submit the job
-				responseData = await ifcPipelineApiRequest.call(
-					this,
-					'POST',
-					'/patch/execute',
-					body,
-				);
-
-				const jobId = responseData.job_id;
-
-				// If waitForCompletion is true, poll for job status
-				if (waitForCompletion && jobId) {
-					responseData = await pollForJobCompletion(this, jobId, pollingInterval, timeout);
-				}
-
-				const executionData = this.helpers.constructExecutionMetaData(
-					this.helpers.returnJsonArray(responseData as any),
-					{ itemData: { item: i } },
-				);
-
-				returnData.push(...executionData);
-			} catch (error) {
-				if (this.continueOnFail()) {
-					const executionErrorData = this.helpers.constructExecutionMetaData(
-						this.helpers.returnJsonArray({ error: error.message }),
-						{ itemData: { item: i } },
-					);
-					returnData.push(...executionErrorData);
-					continue;
-				}
-				throw error;
 			}
 		}
-
-		return [returnData];
 	}
+
+	let isCustom = false;
+	try {
+		const recipesData = await ifcPipelineApiRequest.call(ctx, 'POST', '/patch/recipes/list', {
+			include_builtin: true,
+			include_custom: true,
+		});
+		const recipe = (recipesData.recipes as Recipe[] | undefined)?.find((r) => r.name === recipeName);
+		if (recipe) {
+			isCustom = recipe.is_custom;
+		}
+	} catch {
+		// Allow execute when recipe list is unavailable.
+	}
+
+	const body: IDataObject = {
+		input_file: inputFile,
+		output_file: outputFile,
+		recipe: recipeName,
+		use_custom: isCustom,
+		arguments: args,
+	};
+	applyVersionPins.call(ctx, body, itemIndex);
+
+	const response = (await ifcPipelineApiRequest.call(ctx, 'POST', '/patch/execute', body)) as IDataObject;
+	const jobId = (response.job_id as string | undefined)?.trim();
+	if (!waitForCompletion || !jobId) {
+		return response;
+	}
+
+	return waitForJob(ctx, jobId, itemIndex, waitForCompletion);
 }

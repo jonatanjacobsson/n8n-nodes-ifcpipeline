@@ -130,7 +130,7 @@ export class TopologicPy implements INodeType {
 				required: true,
 			},
 			{
-				name: 'httpHeaderAuth',
+				name: 'httpHeaderAuthApi',
 				required: false,
 				displayOptions: {
 					show: {
@@ -157,7 +157,7 @@ export class TopologicPy implements INodeType {
 						name: 'Ingest',
 						value: 'ingest',
 						description: 'Extract graph relationships from IFC using discipline-specific scripts',
-						action: 'Extract graph relationships for CDE Graph Studio',
+						action: 'Extract graph relationships for cde graph studio',
 					},
 				],
 				default: 'roomstamp',
@@ -178,7 +178,7 @@ export class TopologicPy implements INodeType {
 						operation: ['roomstamp'],
 					},
 				},
-				description: 'Architecture/spatial IFC files containing IfcSpace and optional IfcZone data. Rooms from all selected files are merged into one candidate pool. Pick one or more from the list, or supply an array of object keys using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description: 'Architecture/spatial IFC files containing IfcSpace and optional IfcZone data. Rooms from all selected files are merged into one candidate pool. Pick one or more from the list, or supply an array of object keys using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 
 			// Element Files (one or many)
@@ -196,7 +196,7 @@ export class TopologicPy implements INodeType {
 						operation: ['roomstamp'],
 					},
 				},
-				description: 'MEP/target IFC files containing elements to classify or stamp. Each file is processed and stamped independently (one output per file). Pick one or more from the list, or supply an array of object keys using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+				description: 'MEP/target IFC files containing elements to classify or stamp. Each file is processed and stamped independently (one output per file). Pick one or more from the list, or supply an array of object keys using an <a href="https://docs.n8n.io/code/expressions/">expression</a>. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 
 			// Stamp toggle
@@ -357,23 +357,23 @@ export class TopologicPy implements INodeType {
 
 			// ─── Ingest operation parameters ───────────────────────────────
 			{
-				displayName: 'Ingest Script',
+				displayName: 'Ingest Script Name or ID',
 				name: 'ingestScript',
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getIngestScripts',
 				},
-				default: 'ExtractSpaces',
+				default: '',
 				required: true,
 				displayOptions: {
 					show: {
 						operation: ['ingest'],
 					},
 				},
-				description: 'Discipline-specific ingest script to run. Scripts are discovered dynamically with full parameter documentation — hover for details.',
+				description: 'Discipline-specific ingest script to run. Scripts are discovered dynamically with full parameter documentation — hover for details. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
-				displayName: 'Input Files',
+				displayName: 'Input File Names or IDs',
 				name: 'ingestInputFiles',
 				type: 'multiOptions',
 				typeOptions: {
@@ -386,7 +386,7 @@ export class TopologicPy implements INodeType {
 						operation: ['ingest'],
 					},
 				},
-				description: 'IFC files to process with the selected ingest script',
+				description: 'IFC files to process with the selected ingest script. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 			{
 				displayName: 'Arguments',
@@ -470,8 +470,7 @@ export class TopologicPy implements INodeType {
 						ingestRegisterCde: [true],
 					},
 				},
-				description:
-					'Model revision ref for Graph Studio (e.g. fv:<file-version-uuid>). Required so relationships attach to the selected IFC model.',
+				description: 'Model revision ref for Graph Studio (e.g. fv:&lt;file-version-uuid&gt;). Required so relationships attach to the selected IFC model.',
 				placeholder: 'fv:46b8143b-cadd-4004-a5b7-f07cff250411',
 			},
 			{

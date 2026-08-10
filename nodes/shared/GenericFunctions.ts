@@ -12,6 +12,179 @@ import {
 } from 'n8n-workflow';
 
 /**
+ * Self-tuning client-side rate limiter.
+ *
+ * No UI, no config. The limiter maintains one token bucket per gateway
+ * `baseUrl` (so every IFC* node in every workflow in this n8n process
+ * shares the same budget when they all point at the same API) and adapts
+ * its rate using TCP-style AIMD:
+ *
+ *   • Start at RATE_INITIAL rps (well under the measured ~150 rps ceiling
+ *     observed end-to-end through Cloudflare).
+ *   • Every AI_INTERVAL_MS of sustained success, add 1 rps (up to RATE_MAX).
+ *   • On any 429/503 response, halve the rate (down to RATE_MIN) and, if
+ *     the server included a `Retry-After`, wait it out before resuming.
+ *
+ * Because callers feed success/pushback signals back into the limiter via
+ * `reportSuccess` / `reportBackpressure`, the n8n nodes converge on the
+ * real ceiling — whether that's the FastAPI gateway, a Cloudflare WAF
+ * rule, or a future slowapi middleware — without anyone editing anything.
+ *
+ * Acquisitions are serialized on a per-bucket promise chain so refill and
+ * token math stay race-free under concurrent fan-out inside one process.
+ */
+const RATE_INITIAL = 80;
+const RATE_MIN = 2;
+const RATE_MAX = 200;
+const AI_INTERVAL_MS = 1000; // +1 rps per second of success
+const BACKPRESSURE_COOLDOWN_MS = 2000;
+
+interface AdaptiveBucket {
+	rps: number;
+	tokens: number;
+	lastRefillMs: number;
+	lastIncreaseMs: number;
+	pausedUntilMs: number;
+	chain: Promise<void>;
+}
+
+const buckets: Map<string, AdaptiveBucket> = new Map();
+
+function getBucket(key: string): AdaptiveBucket {
+	let bucket = buckets.get(key);
+	if (!bucket) {
+		const now = Date.now();
+		bucket = {
+			rps: RATE_INITIAL,
+			tokens: RATE_INITIAL,
+			lastRefillMs: now,
+			lastIncreaseMs: now,
+			pausedUntilMs: 0,
+			chain: Promise.resolve(),
+		};
+		buckets.set(key, bucket);
+	}
+	return bucket;
+}
+
+function refill(bucket: AdaptiveBucket): void {
+	const now = Date.now();
+	const deltaMs = now - bucket.lastRefillMs;
+	if (deltaMs > 0) {
+		bucket.tokens = Math.min(
+			bucket.rps,
+			bucket.tokens + (deltaMs * bucket.rps) / 1000,
+		);
+		bucket.lastRefillMs = now;
+	}
+}
+
+export async function acquireRateLimitToken(baseUrl: string): Promise<void> {
+	const key = normalizeBaseUrlKey(baseUrl);
+	const bucket = getBucket(key);
+	const next = bucket.chain.then(async () => {
+		// Honor any active pushback-cooldown before spending a token.
+		const paused = bucket.pausedUntilMs - Date.now();
+		if (paused > 0) {
+			await sleep(paused);
+			bucket.lastRefillMs = Date.now();
+			bucket.tokens = Math.min(bucket.rps, 1); // resume cautiously
+		}
+		refill(bucket);
+		if (bucket.tokens < 1) {
+			const waitMs = Math.max(
+				1,
+				Math.ceil(((1 - bucket.tokens) * 1000) / bucket.rps),
+			);
+			await sleep(waitMs);
+			refill(bucket);
+		}
+		bucket.tokens = Math.max(0, bucket.tokens - 1);
+	});
+	bucket.chain = next.catch(() => undefined);
+	await next;
+}
+
+export function reportSuccess(baseUrl: string): void {
+	const bucket = buckets.get(normalizeBaseUrlKey(baseUrl));
+	if (!bucket) return;
+	const now = Date.now();
+	// Additive increase: +1 rps per AI_INTERVAL_MS of observed success.
+	// Gated by `now >= pausedUntilMs` so we don't ramp up during a cooldown.
+	if (
+		now >= bucket.pausedUntilMs &&
+		now - bucket.lastIncreaseMs >= AI_INTERVAL_MS &&
+		bucket.rps < RATE_MAX
+	) {
+		bucket.rps = Math.min(RATE_MAX, bucket.rps + 1);
+		bucket.lastIncreaseMs = now;
+	}
+}
+
+export function reportBackpressure(
+	baseUrl: string,
+	retryAfterSeconds?: number,
+): void {
+	const bucket = getBucket(normalizeBaseUrlKey(baseUrl));
+	// Multiplicative decrease: halve the rate, clamped to RATE_MIN.
+	bucket.rps = Math.max(RATE_MIN, Math.floor(bucket.rps / 2));
+	bucket.lastIncreaseMs = Date.now(); // reset AI timer
+	// Server-advertised backoff wins over our default cooldown.
+	const retryMs = Number.isFinite(retryAfterSeconds) && (retryAfterSeconds as number) > 0
+		? Math.min(30_000, Math.ceil((retryAfterSeconds as number) * 1000))
+		: BACKPRESSURE_COOLDOWN_MS;
+	bucket.pausedUntilMs = Math.max(bucket.pausedUntilMs, Date.now() + retryMs);
+	bucket.tokens = 0;
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeBaseUrlKey(baseUrl: string): string {
+	// Collapse trailing slashes so `https://api/` and `https://api` share one
+	// bucket. Falls back to a literal string if URL parsing fails.
+	try {
+		const u = new URL(baseUrl);
+		return `${u.protocol}//${u.host}`;
+	} catch {
+		return (baseUrl || '').replace(/\/+$/, '') || 'default';
+	}
+}
+
+/**
+ * Inspect an error thrown by n8n's request helper and decide whether the
+ * server is pushing back. Returns the Retry-After seconds (or undefined)
+ * when the status is 429/503, or null when the error is something else.
+ */
+function extractPushback(error: unknown): { retryAfterSec?: number } | null {
+	const e = error as {
+		statusCode?: number;
+		httpCode?: number | string;
+		response?: { statusCode?: number; headers?: Record<string, string | string[]> };
+	};
+	const status =
+		e?.statusCode ?? e?.response?.statusCode ?? Number(e?.httpCode) ?? undefined;
+	if (status !== 429 && status !== 503) return null;
+	const headers = e?.response?.headers || {};
+	const raw = (headers['retry-after'] ?? headers['Retry-After']) as
+		| string
+		| string[]
+		| undefined;
+	const value = Array.isArray(raw) ? raw[0] : raw;
+	if (!value) return {};
+	const asNum = Number(value);
+	if (Number.isFinite(asNum)) return { retryAfterSec: asNum };
+	// HTTP-date form: compute delta from now.
+	const asDate = Date.parse(value);
+	if (Number.isFinite(asDate)) {
+		const delta = Math.max(0, (asDate - Date.now()) / 1000);
+		return { retryAfterSec: delta };
+	}
+	return {};
+}
+
+/**
  * Make an API request to IFC Pipeline.
  *
  * These nodes target the object-storage variant of ifcpipeline exclusively
@@ -49,11 +222,7 @@ export async function ifcPipelineApiRequest(
 		delete options.qs;
 	}
 
-	try {
-		return await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options as any);
-	} catch (error) {
-		throw new NodeApiError(this.getNode(), error);
-	}
+	return sendWithAdaptiveLimit.call(this, baseUrl, options);
 }
 
 /**
@@ -94,14 +263,8 @@ export async function ifcPipelineApiRequestDownload(
 		delete options.qs;
 	}
 
-	try {
-		const response = await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options as any);
-		return {
-			data: response,
-		};
-	} catch (error) {
-		throw new NodeApiError(this.getNode(), error);
-	}
+	const response = await sendWithAdaptiveLimit.call(this, baseUrl, options);
+	return { data: response };
 }
 
 /**
@@ -137,10 +300,44 @@ export async function ifcPipelineApiRequestUpload(
 		delete options.qs;
 	}
 
+	return sendWithAdaptiveLimit.call(this, baseUrl, options);
+}
+
+/**
+ * Shared send path used by every ifcPipelineApiRequest* helper. Acquires a
+ * token from the baseUrl bucket, issues the request, feeds success or
+ * 429/503 pushback back into the adaptive limiter, and retries exactly
+ * once after an involuntary slowdown so a single transient 429 doesn't
+ * fail the workflow item.
+ */
+async function sendWithAdaptiveLimit(
+	this: IHookFunctions | IExecuteFunctions | ILoadOptionsFunctions,
+	baseUrl: string,
+	options: IRequestOptions,
+): Promise<any> {
+	const attempt = async (): Promise<any> => {
+		await acquireRateLimitToken(baseUrl);
+		const response = await this.helpers.requestWithAuthentication.call(
+			this,
+			'ifcPipelineApi',
+			options,
+		);
+		reportSuccess(baseUrl);
+		return response;
+	};
 	try {
-		return await this.helpers.requestWithAuthentication.call(this, 'ifcPipelineApi', options as any);
+		return await attempt();
 	} catch (error) {
-		throw new NodeApiError(this.getNode(), error);
+		const pushback = extractPushback(error);
+		if (pushback === null) {
+			throw new NodeApiError(this.getNode(), error as any);
+		}
+		reportBackpressure(baseUrl, pushback.retryAfterSec);
+		try {
+			return await attempt();
+		} catch (retryError) {
+			throw new NodeApiError(this.getNode(), retryError as any);
+		}
 	}
 }
 
@@ -188,38 +385,148 @@ export function resolveStorageRef(response: IDataObject | undefined): string | u
 }
 
 /**
- * Helper to attach binary data to items for download operations.
+ * Reusable property descriptor for the "Version Pinning" parameter group.
+ * Every CUSTOM.* node exposes this collection so workflows can optionally
+ * pin inputs to a deterministic MinIO VersionId or audit row. When the
+ * collection is empty (default) the gateway auto-pins to the current
+ * `VersionId` of each input at enqueue time.
+ *
+ * - `inputVersionId` pins the primary input (single-input endpoints).
+ * - `inputAuditId`   pins via the `object_versions` row id instead.
+ * - `inputVersionIds` is a UI collection that maps object-key → VersionId
+ *   for multi-input endpoints (clash, diff). The Execute helper below
+ *   converts it to the flat `input_version_ids` dict the gateway expects.
  */
-export function handleBinaryData(
+export const versionPinningProperty = {
+	displayName: 'Version Pinning (Optional)',
+	name: 'versionPinning',
+	type: 'collection' as const,
+	default: {},
+	placeholder: 'Add Pin',
+	description: 'Pin inputs to a deterministic MinIO VersionId or audit ID. Leave empty to auto-pin to the current version at enqueue time.',
+	options: [
+		{
+			displayName: 'Input Version ID',
+			name: 'inputVersionId',
+			type: 'string' as const,
+			default: '',
+			description:
+				'MinIO VersionId to use for the primary input. Blank = auto-pin at gateway.',
+			placeholder: 'e.g. 4f2a8c01-...-versioned',
+		},
+		{
+			displayName: 'Input Audit ID',
+			name: 'inputAuditId',
+			type: 'number' as const,
+			default: 0,
+			description: 'Object_versions.ID of the version to pin. Alternative to Input Version ID. 0 = ignored.',
+		},
+		{
+			displayName: 'Multi-Input Pins',
+			name: 'inputVersionIdsUi',
+			type: 'fixedCollection' as const,
+			typeOptions: { multipleValues: true },
+			default: {},
+			description:
+				'For multi-input endpoints (clash, diff). Map each referenced object key to a specific VersionId.',
+			placeholder: 'Add Pin',
+			options: [
+				{
+					name: 'pins',
+					displayName: 'Pin',
+					values: [
+						{
+							displayName: 'Object Key or Filename',
+							name: 'key',
+							type: 'string' as const,
+							default: '',
+							description: 'Either the raw object key (uploads/foo.ifc) or the exact filename used in the node',
+						},
+						{
+							displayName: 'Version ID',
+							name: 'versionId',
+							type: 'string' as const,
+							default: '',
+							description: 'MinIO VersionId for this specific input',
+						},
+					],
+				},
+			],
+		},
+	],
+};
+
+/**
+ * Reads the versionPinning collection from the current node parameters and
+ * attaches the corresponding fields to a request body:
+ *   - `input_version_id`  (string)
+ *   - `input_audit_id`    (number)
+ *   - `input_version_ids` (dict, string → string)
+ * Missing / empty values are omitted so the gateway can apply its own
+ * auto-pinning defaults.
+ */
+export function applyVersionPins(
+	this: IExecuteFunctions,
+	body: IDataObject,
+	itemIndex: number,
+	paramName: string = 'versionPinning',
+): IDataObject {
+	const pin = (this.getNodeParameter(paramName, itemIndex, {}) as IDataObject) || {};
+	const vid = (pin.inputVersionId as string | undefined) || '';
+	if (vid.trim()) {
+		body.input_version_id = vid.trim();
+	}
+	const auditId = Number(pin.inputAuditId || 0);
+	if (auditId > 0) {
+		body.input_audit_id = auditId;
+	}
+	const multi = (pin.inputVersionIdsUi as IDataObject | undefined) || {};
+	const entries = (multi.pins as Array<IDataObject> | undefined) || [];
+	if (entries.length) {
+		const map: Record<string, string> = {};
+		for (const entry of entries) {
+			const k = ((entry.key as string) || '').trim();
+			const v = ((entry.versionId as string) || '').trim();
+			if (k && v) map[k] = v;
+		}
+		if (Object.keys(map).length) {
+			body.input_version_ids = map;
+		}
+	}
+	return body;
+}
+
+/**
+ * Helper to attach binary data to items for download operations.
+ *
+ * Routes the payload through n8n's binary-data manager
+ * (`helpers.prepareBinaryData`) instead of stuffing base64 straight into the
+ * item. With `N8N_DEFAULT_BINARY_DATA_MODE=filesystem` this writes the bytes to
+ * disk and keeps only a reference in the execution data — so large IFC files no
+ * longer inflate the in-memory runData (~1.33x as base64) or get serialized with
+ * the execution. Must be called with the executing node's context bound as
+ * `this` so it can reach the binary helpers.
+ */
+export async function handleBinaryData(
+	this: IExecuteFunctions,
 	items: INodeExecutionData[],
 	propertyName: string,
 	fileName: string,
 	mimeType: string,
 	data: Buffer,
-): INodeExecutionData[] {
-	const newItems: INodeExecutionData[] = [];
+): Promise<INodeExecutionData[]> {
+	const binaryData = await this.helpers.prepareBinaryData(data, fileName, mimeType);
 
-	for (const item of items) {
-		const newItem = {
-			json: {
-				...item.json,
-				fileName,
-			},
-			binary: {
-				...(item.binary || {}),
-			},
-		};
-
-		newItem.binary![propertyName] = {
-			data: data.toString('base64'),
-			mimeType,
+	return items.map((item) => ({
+		json: {
+			...item.json,
 			fileName,
-		};
-
-		newItems.push(newItem);
-	}
-
-	return newItems;
+		},
+		binary: {
+			...(item.binary || {}),
+			[propertyName]: binaryData,
+		},
+	}));
 }
 
 /**
@@ -237,9 +544,13 @@ export async function pollForJobCompletion(
 
 	while (!jobCompleted) {
 		if ((Date.now() - startTime) / 1000 > timeout) {
+			const progress = jobStatus?.progress;
+			const progressHint = progress
+				? ` Last progress: phase=${progress.phase ?? 'unknown'}, processed=${progress.processed ?? '?'}/${progress.total ?? '?'}, ${progress.percentage ?? '?'}%.`
+				: '';
 			throw new NodeOperationError(
 				context.getNode(),
-				`Job timeout exceeded after ${timeout} seconds`,
+				`Job timeout exceeded after ${timeout} seconds.${progressHint}`,
 			);
 		}
 

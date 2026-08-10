@@ -39,7 +39,7 @@ export const ifcDiffProperties: INodeProperties[] = [
 		placeholder: 'Select an IFC file...',
 	},
 	{
-		displayName: 'Old Version ID (previous upload)',
+		displayName: 'Old Version ID (Previous Upload)',
 		name: 'oldVersionId',
 		type: 'string',
 		default: '',
@@ -72,7 +72,7 @@ export const ifcDiffProperties: INodeProperties[] = [
 		placeholder: 'Select an IFC file...',
 	},
 	{
-		displayName: 'New Version ID (latest upload)',
+		displayName: 'New Version ID (Latest Upload)',
 		name: 'newVersionId',
 		type: 'string',
 		default: '',

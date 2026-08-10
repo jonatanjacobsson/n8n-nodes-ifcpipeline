@@ -145,7 +145,7 @@ export const fragmentsProperties: INodeProperties[] = [
 		type: 'string',
 		default: '',
 		required: true,
-		description: 'RQ job id from Generate or Ensure (when status is generating)',
+		description: 'RQ job ID from Generate or Ensure (when status is generating)',
 		displayOptions: {
 			show: {
 				operation: ['status'],
