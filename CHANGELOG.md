@@ -5,7 +5,7 @@ All notable changes to `n8n-nodes-ifcpipeline` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.0] - 2026-05-26
+## [0.8.0] - 2026-08-13
 
 This release narrows the user-facing surface to **MinIO `version_id` only**.
 The `audit_id` concept (Postgres `object_versions.id`) is still used by the
@@ -13,8 +13,15 @@ ifcpipeline backend for lineage and dedupe — it is simply no longer exposed
 to n8n workflow authors. Lineage continues to work because the gateway
 resolves parents from `(object_key, version_id)`.
 
+IFC → ThatOpen `.frag` conversion now lives in CDE (`cde/fragmenter` + arq),
+not ifcpipeline, so the matching n8n node is gone.
+
 ### Breaking
 
+- Removed the **Fragments** node (`n8n-nodes-ifcpipeline.fragments`). The
+  ifcpipeline gateway no longer exposes `POST /fragments` or
+  `GET /fragments/{filename}`. Workflows that used this node must drop it;
+  `.frag` baking is owned by CDE.
 - Removed **Input Audit ID** from the `Version Pinning (Optional)` collection
   in every CUSTOM.* node (IfcPatch, IfcClash, IfcCsv, IfcTester,
   IfcConversion, IfcToJson, Ifc2Peppol, IfcQuantityTakeoff, and the
