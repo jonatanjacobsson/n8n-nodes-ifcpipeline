@@ -140,7 +140,7 @@ export class IfcPatch implements INodeType {
 						displayName: 'Argument',
 						values: [
 							{
-								displayName: 'Parameter',
+								displayName: 'Parameter Name or ID',
 								name: 'parameter',
 								type: 'options',
 								typeOptions: {
@@ -149,7 +149,7 @@ export class IfcPatch implements INodeType {
 								},
 								default: '',
 								description:
-									'Which recipe parameter this value is for. Informational only: values are passed to the recipe in the order the arguments are listed.',
+									'Which recipe parameter this value is for. Informational only: values are passed to the recipe in the order the arguments are listed. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 							},
 							{
 								displayName: 'Value',
