@@ -140,6 +140,18 @@ export class IfcPatch implements INodeType {
 						displayName: 'Argument',
 						values: [
 							{
+								displayName: 'Parameter',
+								name: 'parameter',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getRecipeParameters',
+									loadOptionsDependsOn: ['recipeName'],
+								},
+								default: '',
+								description:
+									'Which recipe parameter this value is for. Informational only: values are passed to the recipe in the order the arguments are listed.',
+							},
+							{
 								displayName: 'Value',
 								name: 'value',
 								type: 'string',
@@ -204,6 +216,61 @@ export class IfcPatch implements INodeType {
 			// Get all available IFC files
 			async getIfcFiles(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				return await getFiles.call(this, ['.ifc']);
+			},
+			// Parameters of the selected recipe (name + docstring description), for the Arguments rows
+			async getRecipeParameters(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const recipeName = this.getCurrentNodeParameter('recipeName') as string;
+				if (!recipeName) {
+					return [];
+				}
+				try {
+					const responseData = await ifcPipelineApiRequest.call(
+						this,
+						'POST',
+						'/patch/recipes/list',
+						{ include_builtin: true, include_custom: true },
+					);
+					const recipe = (responseData.recipes as Recipe[] | undefined)?.find(
+						(r) => r.name === recipeName,
+					);
+					const clip = (str: string, n: number) =>
+						str.length > n ? str.slice(0, n - 1).trimEnd() + '\u2026' : str;
+					const escape = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+					return (recipe?.parameters ?? []).map((param) => {
+						let full = (param.description || '').replace(/``/g, '').replace(/\s+/g, ' ').trim();
+						const codeAt = full.search(/\.\. code::|Example:\s*\.\./);
+						if (codeAt >= 0) {
+							full = full.slice(0, codeAt).trim();
+						}
+						const exampleAt = full.search(/Example:\s*\{/);
+						const lead = (exampleAt > 0 ? full.slice(0, exampleAt) : full).trim();
+						const example = exampleAt > 0 ? full.slice(exampleAt).trim() : '';
+						const firstSentence = (lead.match(/^.*?[.!?](?=\s|$)/) || [lead])[0]
+							.replace(/[.:]$/, '')
+							.trim();
+						// Option text is clamped to two lines by n8n: short label in the name, detail below.
+						const shortLabel = firstSentence.length > 0 && firstSentence.length <= 60;
+						const extra = [param.required ? 'required' : 'optional', param.type]
+							.filter(Boolean)
+							.join(', ');
+						const detail =
+							example || (shortLabel && lead.length <= firstSentence.length + 1 ? '' : clip(lead, 180));
+						return {
+							name: shortLabel ? `${param.name} \u2014 ${firstSentence}` : param.name,
+							value: param.name,
+							description: escape(clip(detail || `(${extra})`, 200)),
+						};
+					});
+				} catch {
+					return [
+						{
+							name: 'Error Loading Parameters',
+							value: '',
+							description:
+								'Failed to load recipe parameters. Please check your API credentials and connection.',
+						},
+					];
+				}
 			},
 			// Get all available recipes (built-in and custom)
 			async getRecipes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
