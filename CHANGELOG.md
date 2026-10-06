@@ -5,13 +5,22 @@ All notable changes to `n8n-nodes-ifcpipeline` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.0] - 2026-05-26
+## [0.8.0] - 2026-10-06
 
 This release narrows the user-facing surface to **MinIO `version_id` only**.
 The `audit_id` concept (Postgres `object_versions.id`) is still used by the
 ifcpipeline backend for lineage and dedupe — it is simply no longer exposed
 to n8n workflow authors. Lineage continues to work because the gateway
 resolves parents from `(object_key, version_id)`.
+
+### Added
+
+- **IfcPatch**: each Argument row has an optional **Parameter** selector,
+  loaded from the selected recipe, showing the parameter name, a short label
+  and the example. n8n clamps dropdown descriptions to two lines, so the
+  parameter list in the recipe dropdown was not visible. Informational only:
+  values are still passed by position. Custom recipes need ifcpipeline
+  PR #45 for real descriptions.
 
 ### Breaking
 
